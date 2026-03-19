@@ -3,20 +3,20 @@
 import { useChat } from "@ai-sdk/react";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TravelItineraryItem } from "./api/chat/itinerary-store";
-import { ItineraryToolCall } from "./api/chat/tool-set";
-import ItineraryDisplay from "./components/itinerary";
-import Chat from "./components/chat";
-import WelcomeCard from "./components/welcome-card";
+import { TravelItineraryItem } from "../api/chat/itinerary-store";
+import { ItineraryToolCall } from "../api/chat/tool-set";
+import ItineraryDisplay from "../components/itinerary";
+import Chat from "../components/chat";
+import WelcomeCard from "../components/welcome-card";
 import Map, { MapRef, ViewState } from "react-map-gl/maplibre";
 import { Popup } from "react-map-gl/maplibre";
 import WebMercatorViewport from "viewport-mercator-project";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ToolCall } from "ai";
-import PinMarker from "./components/map/PinMarker";
-import { enrichItineraryWithPlace } from "./utils/places";
-import { groupMarkersByDay, type Marker } from "./utils/markers";
-import { fetchAndDrawDayRoutes } from "./utils/routes";
+import PinMarker from "../components/map/PinMarker";
+import { enrichItineraryWithPlace } from "../utils/places";
+import { groupMarkersByDay, type Marker } from "../utils/markers";
+import { fetchAndDrawDayRoutes } from "../utils/routes";
 
 export default function Home() {
   const [itineraryItems, setItineraryItems] = useState<TravelItineraryItem[]>(
