@@ -147,7 +147,10 @@ export default function Home() {
   });
 
   return (
-    <motion.div layout className="relative h-screen w-screen overflow-hidden">
+    <motion.div
+      layout
+      className="relative h-[calc(100vh-64px)] w-screen overflow-hidden"
+    >
       <div className="absolute h-full w-full">
         <motion.div
           key="map"
