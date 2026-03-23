@@ -10,7 +10,7 @@ interface NavItem {
 
 const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
-  { href: "/itineraries", label: "My Itineraries" },
+  { href: "/my-itineraries", label: "My Itineraries" },
 ];
 
 interface NavLinksProps {
