@@ -18,3 +18,19 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* On mobile the MapLibre attribution control is inside an absolute-positioned
+   map container that sits behind the stacked chat + itinerary panels. Because
+   of this the attribution ends up rendered at an unexpected y-position in the
+   middle of the screen. Pinning it to the viewport corner keeps it visible
+   (required by the MapLibre / MapTiler / OSM licences) while staying out of
+   the way of content. The !important is necessary to override MapLibre's own
+   stylesheet which sets position: absolute on the same element. */
+@media (max-width: 1023px) {
+  .maplibregl-ctrl-bottom-right {
+    position: fixed !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    z-index: 50;
+  }
+}
