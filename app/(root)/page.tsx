@@ -149,7 +149,7 @@ export default function Home() {
   return (
     <motion.div
       layout
-      className="relative h-[calc(100vh-64px)] w-screen overflow-hidden"
+      className="relative h-[calc(100vh-64px)] w-screen overflow-y-auto lg:overflow-hidden"
     >
       <div className="absolute h-full w-full">
         <motion.div
@@ -202,7 +202,7 @@ export default function Home() {
           style={{ pointerEvents: "none" }}
         ></motion.div>
       </div>
-      <div className="pointer-events-none relative h-full w-full p-4">
+      <div className="pointer-events-auto relative min-h-full w-full p-2 sm:p-4 lg:pointer-events-none lg:h-full">
         <AnimatePresence mode="wait">
           {!hasStartedChat ? (
             <WelcomeCard
@@ -215,7 +215,7 @@ export default function Home() {
           ) : (
             <motion.div
               key="chat"
-              className={`grid h-full w-full ${background === "map" ? "grid-cols-[auto_1fr_auto]" : "grid-cols-auto"} justify-center gap-4`}
+              className={`grid min-h-full w-full lg:h-full ${background === "map" ? "grid-cols-1 lg:grid-cols-[auto_1fr_auto]" : "grid-cols-1"} justify-center gap-4`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -223,7 +223,11 @@ export default function Home() {
             >
               {/* Left Column: Chat */}
               <Chat
-                className={background === "map" ? "w-[32rem]" : "w-[64rem]"}
+                className={
+                  background === "map"
+                    ? "h-[60vh] w-full lg:h-full lg:w-[32rem]"
+                    : "w-full max-w-[64rem]"
+                }
                 messages={messages}
                 botActivity={botActivity}
                 input={input}
@@ -234,7 +238,7 @@ export default function Home() {
               {background === "map" && (
                 <>
                   {/* Center Column: Empty Space */}
-                  <div />
+                  <div className="hidden lg:block" />
 
                   {/* Right Column: Itinerary */}
                   <ItineraryDisplay groupedItems={groupedItems} />

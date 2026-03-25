@@ -25,7 +25,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
     >
       <motion.div
         layoutId="chat-card"
-        className="pointer-events-auto w-[32rem] rounded-2xl bg-white p-6 text-center shadow-md"
+        className="pointer-events-auto w-full max-w-[32rem] rounded-2xl bg-white p-6 text-center shadow-md"
         transition={{ duration: 0.4, type: "tween" }}
       >
         <AnimatedGreeting />

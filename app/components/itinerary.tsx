@@ -64,7 +64,7 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
       initial="hidden"
       animate="visible"
       exit="exit" // Add exit animation
-      className="scrollbar-thin pointer-events-auto col-span-1 h-full w-[32rem] space-y-4 overflow-y-auto pb-4 md:w-[32rem]"
+      className="scrollbar-thin pointer-events-auto col-span-1 h-full w-full space-y-4 overflow-y-auto pb-4 lg:w-[32rem]"
     >
       {datesWithDayNumbers.map(({ date, dayNumber }) => (
         <motion.div
