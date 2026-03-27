@@ -241,7 +241,10 @@ export default function Home() {
                   <div className="hidden lg:block" />
 
                   {/* Right Column: Itinerary */}
-                  <ItineraryDisplay groupedItems={groupedItems} />
+                  <ItineraryDisplay
+                    groupedItems={groupedItems}
+                    itineraryItems={itineraryItems}
+                  />
                 </>
               )}
             </motion.div>

@@ -1,10 +1,15 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Calendar, Clock } from "lucide-react";
-import { TravelItineraryItem } from "../api/chat/itinerary-store"; // Adjust path as needed
+import { Calendar, Clock, Bookmark, Loader2, Check } from "lucide-react";
+import { TravelItineraryItem } from "../api/chat/itinerary-store";
+import { saveItinerary } from "../actions/itinerary-actions";
 
 interface ItineraryDisplayProps {
   groupedItems: Record<string, TravelItineraryItem[]>;
+  itineraryItems: TravelItineraryItem[];
 }
 
 // Container variants for staggering days
@@ -42,7 +47,31 @@ const itemVariants = {
 
 const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
   groupedItems,
+  itineraryItems,
 }) => {
+  const [saveState, setSaveState] = useState<
+    "idle" | "loading" | "saved" | "sign-in"
+  >("idle");
+
+  const hasItems = Object.keys(groupedItems).length > 0;
+
+  const handleSave = async () => {
+    setSaveState("loading");
+    try {
+      const result = await saveItinerary(itineraryItems);
+      if (result.success) {
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+      } else if (result.message === "Sign in to save your itinerary") {
+        setSaveState("sign-in");
+      } else {
+        setSaveState("idle");
+      }
+    } catch {
+      setSaveState("idle");
+    }
+  };
+
   // Sort dates (with "Unscheduled" at the end)
   const sortedDates = Object.keys(groupedItems).sort((a, b) => {
     if (a === "Unscheduled") return 1;
@@ -109,6 +138,39 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
           </div>
         </motion.div>
       ))}
+
+      {hasItems && (
+        <div className="pb-2">
+          {saveState === "sign-in" ? (
+            <p className="text-center text-sm text-gray-600">
+              <Link
+                href="/sign-in"
+                className="font-medium text-blue-600 underline hover:text-blue-800"
+              >
+                Sign in
+              </Link>{" "}
+              to save your itinerary
+            </p>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={saveState === "loading" || saveState === "saved"}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-800 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-60 lg:w-auto"
+            >
+              {saveState === "loading" && (
+                <Loader2 size={16} className="animate-spin" />
+              )}
+              {saveState === "saved" && <Check size={16} />}
+              {saveState === "idle" && <Bookmark size={16} />}
+              {saveState === "loading"
+                ? "Saving…"
+                : saveState === "saved"
+                  ? "Saved!"
+                  : "Save Itinerary"}
+            </button>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 };
