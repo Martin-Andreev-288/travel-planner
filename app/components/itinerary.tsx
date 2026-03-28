@@ -9,7 +9,7 @@ import { saveItinerary } from "../actions/itinerary-actions";
 
 interface ItineraryDisplayProps {
   groupedItems: Record<string, TravelItineraryItem[]>;
-  itineraryItems: TravelItineraryItem[];
+  itineraryItems?: TravelItineraryItem[];
 }
 
 // Container variants for staggering days
@@ -58,7 +58,7 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
   const handleSave = async () => {
     setSaveState("loading");
     try {
-      const result = await saveItinerary(itineraryItems);
+      const result = await saveItinerary(itineraryItems!);
       if (result.success) {
         setSaveState("saved");
         setTimeout(() => setSaveState("idle"), 2000);
@@ -139,7 +139,7 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
         </motion.div>
       ))}
 
-      {hasItems && (
+      {hasItems && itineraryItems && (
         <div className="pb-2">
           {saveState === "sign-in" ? (
             <p className="text-center text-sm text-gray-600">
