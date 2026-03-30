@@ -60,6 +60,7 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
     try {
       const result = await saveItinerary(itineraryItems!);
       if (result.success) {
+        localStorage.removeItem("guest_itinerary");
         setSaveState("saved");
         setTimeout(() => setSaveState("idle"), 2000);
       } else if (result.message === "Sign in to save your itinerary") {
