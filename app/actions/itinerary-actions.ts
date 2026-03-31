@@ -123,3 +123,75 @@ export async function renameItinerary(
     return { success: false, message: formatError(error) };
   }
 }
+
+// ── updateItineraryItem ───────────────────────────────────────────────────────
+
+export async function updateItineraryItem(
+  id: string,
+  data: Partial<{
+    name: string;
+    date: string | null;
+    startTime: string | null;
+    endTime: string | null;
+  }>,
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const item = await prisma.itineraryItem.findUnique({
+      where: { id },
+      include: { itinerary: { select: { userId: true, id: true } } },
+    });
+
+    if (!item) {
+      return { success: false, message: "Item not found" };
+    }
+
+    if (item.itinerary.userId !== session.user.id) {
+      return { success: false, message: "Not authorised" };
+    }
+
+    await prisma.itineraryItem.update({ where: { id }, data });
+
+    revalidatePath(`/my-itineraries/${item.itinerary.id}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: formatError(error) };
+  }
+}
+
+// ── deleteItineraryItem ───────────────────────────────────────────────────────
+
+export async function deleteItineraryItem(
+  id: string,
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const item = await prisma.itineraryItem.findUnique({
+      where: { id },
+      include: { itinerary: { select: { userId: true, id: true } } },
+    });
+
+    if (!item) {
+      return { success: false, message: "Item not found" };
+    }
+
+    if (item.itinerary.userId !== session.user.id) {
+      return { success: false, message: "Not authorised" };
+    }
+
+    await prisma.itineraryItem.delete({ where: { id } });
+
+    revalidatePath(`/my-itineraries/${item.itinerary.id}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: formatError(error) };
+  }
+}
