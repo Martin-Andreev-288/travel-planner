@@ -18,6 +18,7 @@ import { enrichItineraryWithPlace } from "../utils/places";
 import { groupMarkersByDay, type Marker } from "../utils/markers";
 import { fetchAndDrawDayRoutes } from "../utils/routes";
 import type { Session } from "next-auth";
+import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 
 const STORAGE_KEY = "guest_itinerary";
 
@@ -31,6 +32,8 @@ export default function Home({ session }: { session: Session | null }) {
   const [markersByDay, setMarkersByDay] = useState<Marker[][]>([]);
   const [hoveredMarker, setHoveredMarker] = useState<Marker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [chatVisible, setChatVisible] = useState(true);
+  const [itineraryVisible, setItineraryVisible] = useState(true);
   const mapRef = useRef<MapRef>(null);
 
   const { messages, setMessages, input, setInput, handleSubmit, status } =
@@ -147,6 +150,16 @@ export default function Home({ session }: { session: Session | null }) {
     setInput(e.target.value);
   };
 
+  const handleStartOver = () => {
+    setItineraryItems([]);
+    setHasStartedChat(false);
+    setBackground("static");
+    setMessages([]);
+    setChatVisible(true);
+    setItineraryVisible(true);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
   // Group itinerary items by date
   const groupedItems = itineraryItems.reduce<
     Record<string, TravelItineraryItem[]>
@@ -230,6 +243,23 @@ export default function Home({ session }: { session: Session | null }) {
           style={{ pointerEvents: "none" }}
         ></motion.div>
       </div>
+      {/* Toggle buttons to restore collapsed panels (lg only) */}
+      {hasStartedChat && background === "map" && !chatVisible && (
+        <button
+          onClick={() => setChatVisible(true)}
+          className="pointer-events-auto absolute top-1/2 left-4 z-20 hidden -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-lg backdrop-blur-sm transition-colors hover:bg-white lg:flex"
+        >
+          <ChevronRight className="h-5 w-5 text-gray-700" />
+        </button>
+      )}
+      {hasStartedChat && background === "map" && !itineraryVisible && (
+        <button
+          onClick={() => setItineraryVisible(true)}
+          className="pointer-events-auto absolute top-1/2 right-4 z-20 hidden -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-lg backdrop-blur-sm transition-colors hover:bg-white lg:flex"
+        >
+          <ChevronLeft className="h-5 w-5 text-gray-700" />
+        </button>
+      )}
       <div className="pointer-events-auto relative min-h-full w-full p-2 sm:p-4 lg:pointer-events-none lg:h-full">
         <AnimatePresence mode="wait">
           {!hasStartedChat ? (
@@ -243,37 +273,91 @@ export default function Home({ session }: { session: Session | null }) {
           ) : (
             <motion.div
               key="chat"
-              className={`grid min-h-full w-full lg:h-full ${background === "map" ? "grid-cols-1 lg:grid-cols-[auto_1fr_auto]" : "grid-cols-1"} justify-center gap-4`}
+              className={`min-h-full w-full lg:h-full ${
+                background === "map"
+                  ? "flex flex-col gap-4 lg:flex-row"
+                  : "grid grid-cols-1 justify-center gap-4"
+              }`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Left Column: Chat */}
-              <Chat
-                className={
-                  background === "map"
-                    ? "h-[60vh] w-full lg:h-full lg:w-[32rem]"
-                    : "w-full max-w-[64rem]"
-                }
-                messages={messages}
-                botActivity={botActivity}
-                input={input}
-                onInputChange={handleInputChange}
-                onSubmit={handleSubmit}
-              />
-
-              {background === "map" && (
+              {background === "map" ? (
                 <>
-                  {/* Center Column: Empty Space */}
-                  <div className="hidden lg:block" />
+                  {/* Chat panel */}
+                  <AnimatePresence>
+                    {chatVisible && (
+                      <motion.div
+                        key="chat-panel"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className="relative"
+                      >
+                        <button
+                          onClick={() => setChatVisible(false)}
+                          className="pointer-events-auto absolute top-4 -right-3 z-10 hidden items-center justify-center rounded-full bg-white/80 p-1 shadow-md backdrop-blur-sm transition-colors hover:bg-white lg:flex"
+                        >
+                          <ChevronLeft className="h-4 w-4 text-gray-600" />
+                        </button>
+                        <Chat
+                          className="h-[60vh] w-full lg:h-full lg:w-[32rem]"
+                          messages={messages}
+                          botActivity={botActivity}
+                          input={input}
+                          onInputChange={handleInputChange}
+                          onSubmit={handleSubmit}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
-                  {/* Right Column: Itinerary */}
-                  <ItineraryDisplay
-                    groupedItems={groupedItems}
-                    itineraryItems={itineraryItems}
-                  />
+                  {/* Spacer */}
+                  <div className="hidden flex-1 lg:block" />
+
+                  {/* Itinerary panel */}
+                  <AnimatePresence>
+                    {itineraryVisible && (
+                      <motion.div
+                        key="itinerary-panel"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="relative lg:h-full"
+                      >
+                        <button
+                          onClick={() => setItineraryVisible(false)}
+                          className="pointer-events-auto absolute top-4 -left-3 z-10 hidden items-center justify-center rounded-full bg-white/80 p-1 shadow-md backdrop-blur-sm transition-colors hover:bg-white lg:flex"
+                        >
+                          <ChevronRight className="h-4 w-4 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={handleStartOver}
+                          className="pointer-events-auto absolute -top-2 right-3 z-10 flex items-center gap-1.5 rounded-lg bg-white/80 px-3 py-1.5 text-sm font-bold text-gray-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Start over
+                        </button>
+                        <ItineraryDisplay
+                          groupedItems={groupedItems}
+                          itineraryItems={itineraryItems}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </>
+              ) : (
+                <Chat
+                  className="w-full max-w-[64rem]"
+                  messages={messages}
+                  botActivity={botActivity}
+                  input={input}
+                  onInputChange={handleInputChange}
+                  onSubmit={handleSubmit}
+                />
               )}
             </motion.div>
           )}
