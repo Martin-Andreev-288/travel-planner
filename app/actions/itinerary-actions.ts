@@ -10,31 +10,7 @@ import { revalidatePath } from "next/cache";
 
 function generateTitle(items: TravelItineraryItem[]): string {
   if (!items.length) return "Untitled Trip";
-
-  const city = items[0].city;
-
-  const dates = items
-    .map((item) => item.date)
-    .filter((d): d is string => !!d)
-    .sort();
-
-  if (!dates.length) return `${city} Trip`;
-
-  const fmt = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const first = fmt(dates[0]);
-  const last = fmt(dates[dates.length - 1]);
-
-  return dates[0] === dates[dates.length - 1]
-    ? `${city} · ${first}`
-    : `${city} · ${first} – ${last}`;
+  return `${items[0].city} Trip`;
 }
 
 // ── saveItinerary ─────────────────────────────────────────────────────────────
