@@ -195,3 +195,55 @@ export async function deleteItineraryItem(
     return { success: false, message: formatError(error) };
   }
 }
+
+// ── updateItinerary ───────────────────────────────────────────────────────────
+
+export async function updateItinerary(
+  id: string,
+  items: TravelItineraryItem[],
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const itinerary = await prisma.itinerary.findUnique({ where: { id } });
+
+    if (!itinerary) {
+      return { success: false, message: "Itinerary not found" };
+    }
+
+    if (itinerary.userId !== session.user.id) {
+      return { success: false, message: "Not authorised" };
+    }
+
+    const title = generateTitle(items);
+
+    await prisma.$transaction([
+      prisma.itineraryItem.deleteMany({ where: { itineraryId: id } }),
+      prisma.itinerary.update({
+        where: { id },
+        data: {
+          title,
+          items: {
+            create: items.map((item) => ({
+              name: item.name,
+              city: item.city,
+              location: item.location ?? null,
+              date: item.date ?? null,
+              startTime: item.startTime ?? null,
+              endTime: item.endTime ?? null,
+            })),
+          },
+        },
+      }),
+    ]);
+
+    revalidatePath("/my-itineraries");
+    revalidatePath(`/my-itineraries/${id}`);
+    return { success: true, message: "Itinerary updated" };
+  } catch (error) {
+    return { success: false, message: formatError(error) };
+  }
+}

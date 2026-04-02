@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
+  MessageSquarePlus,
   Pencil,
   Trash2,
   Loader2,
@@ -28,11 +29,13 @@ interface ItineraryItem {
 }
 
 interface ItineraryDetailProps {
+  id: string;
   title: string;
   items: ItineraryItem[];
 }
 
 export default function ItineraryDetail({
+  id,
   title,
   items: initialItems,
 }: ItineraryDetailProps) {
@@ -157,9 +160,20 @@ export default function ItineraryDetail({
         Back to My Itineraries
       </Link>
 
-      <h1 className="mb-6 text-2xl font-bold text-[#2c3e50] sm:text-3xl">
-        {title}
-      </h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-[#2c3e50] sm:text-3xl">
+          {title}
+        </h1>
+        {items.length > 0 && (
+          <Link
+            href={`/#${encodeURIComponent(JSON.stringify({ itineraryId: id, toolCalls: items.map((item) => ({ toolName: "addItineraryItem" as const, args: { id: item.id, name: item.name, city: item.city, ...(item.date && { date: item.date }), ...(item.startTime && { startTime: item.startTime }), ...(item.endTime && { endTime: item.endTime }) } })) }))}`}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            <MessageSquarePlus size={16} />
+            Continue Planning
+          </Link>
+        )}
+      </div>
 
       <div className="space-y-6">
         {datesWithDayNumbers.map(({ date, dayNumber }) => (

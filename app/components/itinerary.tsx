@@ -5,11 +5,12 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Calendar, Clock, Bookmark, Loader2, Check } from "lucide-react";
 import { TravelItineraryItem } from "../api/chat/itinerary-store";
-import { saveItinerary } from "../actions/itinerary-actions";
+import { saveItinerary, updateItinerary } from "../actions/itinerary-actions";
 
 interface ItineraryDisplayProps {
   groupedItems: Record<string, TravelItineraryItem[]>;
   itineraryItems?: TravelItineraryItem[];
+  currentItineraryId?: string | null;
 }
 
 // Container variants for staggering days
@@ -48,6 +49,7 @@ const itemVariants = {
 const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
   groupedItems,
   itineraryItems,
+  currentItineraryId,
 }) => {
   const [saveState, setSaveState] = useState<
     "idle" | "loading" | "saved" | "sign-in"
@@ -58,7 +60,9 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
   const handleSave = async () => {
     setSaveState("loading");
     try {
-      const result = await saveItinerary(itineraryItems!);
+      const result = currentItineraryId
+        ? await updateItinerary(currentItineraryId, itineraryItems!)
+        : await saveItinerary(itineraryItems!);
       if (result.success) {
         localStorage.removeItem("guest_itinerary");
         setSaveState("saved");
@@ -167,7 +171,9 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
                 ? "Saving…"
                 : saveState === "saved"
                   ? "Saved!"
-                  : "Save Itinerary"}
+                  : currentItineraryId
+                    ? "Update Itinerary"
+                    : "Save Itinerary"}
             </button>
           )}
         </div>

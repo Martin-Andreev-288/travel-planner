@@ -46,5 +46,7 @@ export default async function ItineraryDetailPage({
     endTime: item.endTime ?? undefined,
   }));
 
-  return <ItineraryDetail title={itinerary.title} items={items} />;
+  return (
+    <ItineraryDetail id={itinerary.id} title={itinerary.title} items={items} />
+  );
 }

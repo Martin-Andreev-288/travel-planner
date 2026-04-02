@@ -34,6 +34,9 @@ export default function Home({ session }: { session: Session | null }) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
   const [itineraryVisible, setItineraryVisible] = useState(true);
+  const [currentItineraryId, setCurrentItineraryId] = useState<string | null>(
+    null,
+  );
   const mapRef = useRef<MapRef>(null);
 
   const { messages, setMessages, input, setInput, handleSubmit, status } =
@@ -76,10 +79,22 @@ export default function Home({ session }: { session: Session | null }) {
       setHasStartedChat(true);
       setBackground("map");
       const decodedHash = decodeURIComponent(hash);
-      const toolCalls = JSON.parse(decodedHash);
-      for (const toolCall of toolCalls) {
-        handleToolCall({ toolCall });
+      const parsed = JSON.parse(decodedHash);
+
+      let toolCalls: unknown[];
+      if (Array.isArray(parsed)) {
+        toolCalls = parsed;
+      } else {
+        toolCalls = parsed.toolCalls;
+        if (parsed.itineraryId) {
+          setCurrentItineraryId(parsed.itineraryId);
+        }
       }
+
+      for (const toolCall of toolCalls) {
+        handleToolCall({ toolCall: toolCall as ToolCall<string, unknown> });
+      }
+      window.history.replaceState(null, "", window.location.pathname);
     };
     handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
@@ -157,6 +172,7 @@ export default function Home({ session }: { session: Session | null }) {
     setMessages([]);
     setChatVisible(true);
     setItineraryVisible(true);
+    setCurrentItineraryId(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -344,6 +360,7 @@ export default function Home({ session }: { session: Session | null }) {
                         <ItineraryDisplay
                           groupedItems={groupedItems}
                           itineraryItems={itineraryItems}
+                          currentItineraryId={currentItineraryId}
                         />
                       </motion.div>
                     )}
