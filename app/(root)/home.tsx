@@ -91,9 +91,45 @@ export default function Home({ session }: { session: Session | null }) {
         }
       }
 
+      const loadedItems: TravelItineraryItem[] = [];
       for (const toolCall of toolCalls) {
-        handleToolCall({ toolCall: toolCall as ToolCall<string, unknown> });
+        const tc = toolCall as ToolCall<string, unknown>;
+        handleToolCall({ toolCall: tc });
+        if (tc.toolName === "addItineraryItem") {
+          loadedItems.push(tc.args as TravelItineraryItem);
+        }
       }
+
+      // Inject synthetic messages so the AI knows about the loaded itinerary
+      if (loadedItems.length > 0) {
+        const city = loadedItems[0].city;
+        const itemSummary = loadedItems
+          .map((item) => {
+            const time =
+              item.startTime && item.endTime
+                ? ` (${item.startTime}–${item.endTime})`
+                : item.startTime
+                  ? ` (${item.startTime})`
+                  : "";
+            const date = item.date ? ` [${item.date}]` : "";
+            return `- ${item.name}${time}${date}`;
+          })
+          .join("\n");
+
+        setMessages([
+          {
+            id: "continue-user",
+            role: "user",
+            content: `I have an existing ${city} itinerary I'd like to continue working on.`,
+          },
+          {
+            id: "continue-assistant",
+            role: "assistant",
+            content: `Welcome back! Here's your current itinerary:\n\n${itemSummary}\n\nWhat changes would you like to make?`,
+          },
+        ]);
+      }
+
       window.history.replaceState(null, "", window.location.pathname);
     };
     handleHashChange();
