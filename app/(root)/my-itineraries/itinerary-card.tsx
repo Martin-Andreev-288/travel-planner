@@ -73,9 +73,11 @@ export default function ItineraryCard({
         ) : (
           <button
             onClick={startEditing}
-            className="group flex items-center gap-1.5 text-left"
+            className="group flex min-w-0 items-center gap-1.5 text-left"
           >
-            <h2 className="text-lg font-bold text-[#2c3e50]">{title}</h2>
+            <h2 className="truncate text-lg font-bold text-[#2c3e50]">
+              {title}
+            </h2>
             <Pencil
               size={14}
               className="shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"

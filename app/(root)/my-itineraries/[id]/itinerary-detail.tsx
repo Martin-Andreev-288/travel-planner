@@ -151,7 +151,7 @@ export default function ItineraryDetail({
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="mx-auto w-full max-w-2xl overflow-hidden px-4 py-6 sm:px-8 sm:py-10">
       <Link
         href="/my-itineraries"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-600 transition-colors hover:text-gray-900"
@@ -160,14 +160,14 @@ export default function ItineraryDetail({
         Back to My Itineraries
       </Link>
 
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#2c3e50] sm:text-3xl">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="min-w-0 truncate py-2 text-2xl font-bold text-[#2c3e50] sm:text-3xl">
           {title}
         </h1>
         {items.length > 0 && (
           <Link
             href={`/#${encodeURIComponent(JSON.stringify({ itineraryId: id, toolCalls: items.map((item) => ({ toolName: "addItineraryItem" as const, args: { id: item.id, name: item.name, city: item.city, ...(item.date && { date: item.date }), ...(item.startTime && { startTime: item.startTime }), ...(item.endTime && { endTime: item.endTime }) } })) }))}`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-gray-700"
           >
             <MessageSquarePlus size={16} />
             Continue Planning
@@ -274,8 +274,8 @@ export default function ItineraryDetail({
                   ) : (
                     /* ── View mode ── */
                     <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-800">
+                      <div className="min-w-0">
+                        <h4 className="truncate text-sm font-semibold text-gray-800">
                           {item.name}
                         </h4>
                         {item.startTime && (
