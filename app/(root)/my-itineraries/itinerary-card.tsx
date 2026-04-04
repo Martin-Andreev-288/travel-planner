@@ -7,6 +7,7 @@ import {
   deleteItinerary,
   renameItinerary,
 } from "@/app/actions/itinerary-actions";
+import ConfirmDialog from "@/app/components/shared/confirm-dialog";
 
 interface ItineraryCardProps {
   id: string;
@@ -29,6 +30,7 @@ export default function ItineraryCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(initialTitle);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = () => {
@@ -51,6 +53,7 @@ export default function ItineraryCard({
   };
 
   const handleDelete = async () => {
+    setShowConfirm(false);
     setIsDeleting(true);
     const result = await deleteItinerary(id);
     if (!result.success) setIsDeleting(false);
@@ -125,7 +128,7 @@ export default function ItineraryCard({
           View
         </Link>
         <button
-          onClick={handleDelete}
+          onClick={() => setShowConfirm(true)}
           disabled={isDeleting}
           className="flex items-center gap-1.5 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
         >
@@ -137,6 +140,13 @@ export default function ItineraryCard({
           {isDeleting ? "Deleting…" : "Delete"}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={showConfirm}
+        message={`Are you sure you want to delete "${title}"? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setShowConfirm(false)}
+      />
     </div>
   );
 }
