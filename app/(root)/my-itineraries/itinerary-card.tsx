@@ -29,6 +29,7 @@ export default function ItineraryCard({
   const [title, setTitle] = useState(initialTitle);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(initialTitle);
+  const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +45,9 @@ export default function ItineraryCard({
     const trimmed = editValue.trim();
     if (!trimmed || trimmed === title) return;
     setTitle(trimmed);
+    setIsRenaming(true);
     await renameItinerary(id, trimmed);
+    setIsRenaming(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -81,10 +84,17 @@ export default function ItineraryCard({
             <h2 className="truncate text-lg font-bold text-[#2c3e50]">
               {title}
             </h2>
-            <Pencil
-              size={14}
-              className="shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
-            />
+            {isRenaming ? (
+              <Loader2
+                size={14}
+                className="shrink-0 animate-spin text-gray-400"
+              />
+            ) : (
+              <Pencil
+                size={14}
+                className="shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
+              />
+            )}
           </button>
         )}
       </div>

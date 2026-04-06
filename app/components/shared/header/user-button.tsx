@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { signOutUser } from "@/app/actions/user-actions";
 
 interface UserButtonProps {
@@ -10,6 +11,7 @@ interface UserButtonProps {
 
 export default function UserButton({ name, email }: UserButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement>(null);
 
   const firstInitial =
@@ -52,14 +54,14 @@ export default function UserButton({ name, email }: UserButtonProps) {
           </div>
 
           {/* Sign Out */}
-          <form action={signOutUser} className="w-full">
-            <button
-              type="submit"
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100"
-            >
-              Sign Out
-            </button>
-          </form>
+          <button
+            onClick={() => startTransition(() => signOutUser())}
+            disabled={isPending}
+            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
+          >
+            {isPending && <Loader2 size={14} className="animate-spin" />}
+            {isPending ? "Signing out…" : "Sign Out"}
+          </button>
         </div>
       )}
     </div>
