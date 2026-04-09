@@ -397,6 +397,18 @@ export default function Home({ session }: { session: Session | null }) {
                           groupedItems={groupedItems}
                           itineraryItems={itineraryItems}
                           currentItineraryId={currentItineraryId}
+                          onUpdateItem={(id, updates) =>
+                            setItineraryItems((prev) =>
+                              prev.map((item) =>
+                                item.id === id ? { ...item, ...updates } : item,
+                              ),
+                            )
+                          }
+                          onDeleteItem={(id) =>
+                            setItineraryItems((prev) =>
+                              prev.filter((item) => item.id !== id),
+                            )
+                          }
                         />
                       </motion.div>
                     )}

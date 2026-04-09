@@ -3,7 +3,16 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Calendar, Clock, Bookmark, Loader2, Check } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Bookmark,
+  Loader2,
+  Check,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 import { TravelItineraryItem } from "../api/chat/itinerary-store";
 import { saveItinerary, updateItinerary } from "../actions/itinerary-actions";
 
@@ -11,6 +20,8 @@ interface ItineraryDisplayProps {
   groupedItems: Record<string, TravelItineraryItem[]>;
   itineraryItems?: TravelItineraryItem[];
   currentItineraryId?: string | null;
+  onUpdateItem?: (id: string, updates: Partial<TravelItineraryItem>) => void;
+  onDeleteItem?: (id: string) => void;
 }
 
 // Container variants for staggering days
@@ -50,10 +61,16 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
   groupedItems,
   itineraryItems,
   currentItineraryId,
+  onUpdateItem,
+  onDeleteItem,
 }) => {
   const [saveState, setSaveState] = useState<
     "idle" | "loading" | "saved" | "sign-in"
   >("idle");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Partial<TravelItineraryItem>>(
+    {},
+  );
 
   const hasItems = Object.keys(groupedItems).length > 0;
 
@@ -75,6 +92,39 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
     } catch {
       setSaveState("idle");
     }
+  };
+
+  const startEditing = (item: TravelItineraryItem) => {
+    setEditingId(item.id);
+    setEditValues({
+      name: item.name,
+      date: item.date ?? "",
+      startTime: item.startTime ?? "",
+      endTime: item.endTime ?? "",
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const commitEdit = (id: string) => {
+    if (onUpdateItem && editValues.name?.trim()) {
+      onUpdateItem(id, {
+        name: editValues.name,
+        date: editValues.date || undefined,
+        startTime: editValues.startTime || undefined,
+        endTime: editValues.endTime || undefined,
+      });
+    }
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.key === "Enter") commitEdit(id);
+    if (e.key === "Escape") cancelEditing();
   };
 
   // Sort dates (with "Unscheduled" at the end)
@@ -122,19 +172,115 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
                 <motion.div
                   key={item.id}
                   variants={itemVariants}
-                  className="rounded-md border border-gray-200/50 bg-white/80 p-3 shadow-sm"
+                  className="group rounded-md border border-gray-200/50 bg-white/80 p-3 shadow-sm"
                 >
-                  <h4 className="text-sm font-semibold text-gray-800">
-                    {item.name}
-                  </h4>
-                  {item.startTime && (
-                    <div className="mt-1 flex items-center text-xs text-gray-600">
-                      <Clock size={12} className="mr-1 text-gray-500" />
-                      <span>
-                        {item.endTime
-                          ? `${item.startTime} - ${item.endTime}`
-                          : item.startTime}
-                      </span>
+                  {editingId === item.id ? (
+                    /* ── Edit mode ── */
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editValues.name ?? ""}
+                        onChange={(e) =>
+                          setEditValues((v) => ({ ...v, name: e.target.value }))
+                        }
+                        onKeyDown={(e) => handleEditKeyDown(e, item.id)}
+                        className="w-full rounded border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-800 focus:border-blue-400 focus:outline-none"
+                        autoFocus
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          type="date"
+                          value={editValues.date ?? ""}
+                          onChange={(e) =>
+                            setEditValues((v) => ({
+                              ...v,
+                              date: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => handleEditKeyDown(e, item.id)}
+                          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:border-blue-400 focus:outline-none"
+                        />
+                        <input
+                          type="time"
+                          value={editValues.startTime ?? ""}
+                          onChange={(e) =>
+                            setEditValues((v) => ({
+                              ...v,
+                              startTime: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => handleEditKeyDown(e, item.id)}
+                          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:border-blue-400 focus:outline-none"
+                        />
+                        <span className="self-center text-xs text-gray-400">
+                          –
+                        </span>
+                        <input
+                          type="time"
+                          value={editValues.endTime ?? ""}
+                          onChange={(e) =>
+                            setEditValues((v) => ({
+                              ...v,
+                              endTime: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => handleEditKeyDown(e, item.id)}
+                          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:border-blue-400 focus:outline-none"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => commitEdit(item.id)}
+                          className="inline-flex items-center gap-1 rounded bg-gray-800 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-700"
+                        >
+                          <Check size={12} />
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEditing}
+                          className="inline-flex items-center gap-1 rounded bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300"
+                        >
+                          <X size={12} />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── View mode ── */
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0">
+                        <h4 className="truncate text-sm font-semibold text-gray-800">
+                          {item.name}
+                        </h4>
+                        {item.startTime && (
+                          <div className="mt-1 flex items-center text-xs text-gray-600">
+                            <Clock size={12} className="mr-1 text-gray-500" />
+                            <span>
+                              {item.endTime
+                                ? `${item.startTime} - ${item.endTime}`
+                                : item.startTime}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {onUpdateItem && onDeleteItem && (
+                        <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            onClick={() => startEditing(item)}
+                            className="rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => onDeleteItem(item.id)}
+                            className="rounded p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </motion.div>
