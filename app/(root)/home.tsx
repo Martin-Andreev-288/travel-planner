@@ -57,11 +57,14 @@ export default function Home({ session }: { session: Session | null }) {
         setItineraryItems(items);
         setHasStartedChat(true);
         setBackground("map");
+        const city = items[0].city;
+        if (city) zoomToCity(city);
         localStorage.removeItem(STORAGE_KEY);
       }
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   // Persist itinerary to localStorage for guests
@@ -100,9 +103,10 @@ export default function Home({ session }: { session: Session | null }) {
         }
       }
 
-      // Inject synthetic messages so the AI knows about the loaded itinerary
+      // Zoom the map to the itinerary's city
       if (loadedItems.length > 0) {
         const city = loadedItems[0].city;
+        zoomToCity(city);
         const itemSummary = loadedItems
           .map((item) => {
             const time =
