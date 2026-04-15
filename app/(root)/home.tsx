@@ -169,10 +169,12 @@ export default function Home({ session }: { session: Session | null }) {
     fetchCoordinates();
   }, [itineraryItems]);
 
+  const drawnRoutesRef = useRef<string[]>([]);
+
   useEffect(() => {
     if (!mapRef.current || markersByDay.length === 0 || !mapLoaded) return;
     const map = mapRef.current.getMap();
-    fetchAndDrawDayRoutes(markersByDay, map);
+    fetchAndDrawDayRoutes(markersByDay, map, drawnRoutesRef.current);
   }, [markersByDay, mapLoaded]);
 
   useEffect(() => {

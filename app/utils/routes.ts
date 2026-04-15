@@ -2,11 +2,11 @@ import { MapRef } from "react-map-gl/maplibre";
 import { Marker } from "./markers";
 
 const routeColors = ["#3b9ddd", "#e6b91e", "#a63d40", "#90a959"];
-const drawnRoutes: string[] = [];
 
 export async function fetchAndDrawDayRoutes(
   markersByDay: Marker[][],
   map: ReturnType<MapRef["getMap"]>,
+  drawnRoutes: string[],
 ) {
   // Process each day's markers
   markersByDay.forEach((markers, dayIndex) => {
