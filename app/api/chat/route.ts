@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   );
   const result = streamText({
     system,
-    model: google("gemini-2.5-flash"),
+    model: google("gemini-3.5-flash"),
     messages,
     tools: createToolSet(id),
   });
