@@ -1,10 +1,14 @@
-import { tool, ToolCallUnion, ToolResultUnion } from "ai";
+import { InferUITools, StaticToolCall, tool, UIDataTypes, UIMessage } from "ai";
 import { z } from "zod";
 import { getOrCreateItinerary, TravelItineraryItem } from "./itinerary-store";
 
-export type ItineraryToolCall = ToolCallUnion<ReturnType<typeof createToolSet>>;
-export type ItineraryToolResult = ToolResultUnion<
-  ReturnType<typeof createToolSet>
+type ItineraryToolSet = ReturnType<typeof createToolSet>;
+
+export type ItineraryToolCall = StaticToolCall<ItineraryToolSet>;
+export type ItineraryUIMessage = UIMessage<
+  never,
+  UIDataTypes,
+  InferUITools<ItineraryToolSet>
 >;
 
 const nameSchema = z.string().describe("Name of the itinerary item");
@@ -23,7 +27,7 @@ export function createToolSet(sessionId: string) {
   return {
     addItineraryItem: tool({
       description: "adds an item to the travel itinerary",
-      parameters: z.object({
+      inputSchema: z.object({
         id: z.string(),
         city: z.string(),
         name: nameSchema,
@@ -35,12 +39,12 @@ export function createToolSet(sessionId: string) {
     }),
     removeItineraryItem: tool({
       description: "removes an item from the travel itinerary",
-      parameters: z.object({ id: z.string() }),
+      inputSchema: z.object({ id: z.string() }),
       execute: async (params) => removeItineraryItem(params),
     }),
     updateItineraryItem: tool({
       description: "updates an item in the travel itinerary",
-      parameters: z.object({
+      inputSchema: z.object({
         id: z.string(),
         city: z.string(),
         name: nameSchema.optional(),
@@ -52,9 +56,11 @@ export function createToolSet(sessionId: string) {
     }),
     setLocation: tool({
       description: "the location that the user wants to visit",
-      parameters: z.object({
+      inputSchema: z.object({
         name: z.string(),
       }),
+      // The map zoom happens on the client; the server only acknowledges it
+      execute: async () => ({ status: "ok" }),
     }),
   };
 

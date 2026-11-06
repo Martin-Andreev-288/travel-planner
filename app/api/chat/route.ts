@@ -1,13 +1,17 @@
-import { streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 import { google } from "@ai-sdk/google";
 import fs from "fs/promises";
 import { getOrCreateItinerary } from "./itinerary-store";
-import { createToolSet } from "./tool-set";
+import { createToolSet, ItineraryUIMessage } from "./tool-set";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+// Upper bound for the model -> tool -> model loop of a single request
+const MAX_STEPS = 10;
 
 const systemMessageTemplate = await fs.readFile(
   `${process.cwd()}/app/api/chat/system.md`,
@@ -15,7 +19,7 @@ const systemMessageTemplate = await fs.readFile(
 );
 
 export async function POST(req: Request) {
-  const { id, messages }: { id: string; messages: Message[] } =
+  const { id, messages }: { id: string; messages: ItineraryUIMessage[] } =
     await req.json();
   const itineraryPlan = getOrCreateItinerary(id);
 
@@ -38,15 +42,26 @@ export async function POST(req: Request) {
     return a.startTime.localeCompare(b.startTime);
   });
 
-  const system = systemMessageTemplate.replace(
+  const instructions = systemMessageTemplate.replace(
     "{{ITINERARY}}",
     JSON.stringify(sortedItinerary, null, 2),
   );
+  const tools = createToolSet(id);
   const result = streamText({
-    system,
-    model: google("gemini-3.5-flash"),
-    messages,
-    tools: createToolSet(id),
+    instructions,
+    model: google("gemini-3.5-flash-lite"),
+    messages: await convertToModelMessages(messages, { tools }),
+    tools,
+    stopWhen: isStepCount(MAX_STEPS),
+    onError: ({ error }) => console.error("[chat] streamText error:", error),
   });
-  return result.toDataStreamResponse();
+
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      tools,
+      onError: (error) =>
+        error instanceof Error ? error.message : "Something went wrong.",
+    }),
+  });
 }

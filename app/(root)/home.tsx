@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TravelItineraryItem } from "../api/chat/itinerary-store";
-import { ItineraryToolCall } from "../api/chat/tool-set";
+import { ItineraryToolCall, ItineraryUIMessage } from "../api/chat/tool-set";
 import ItineraryDisplay from "../components/itinerary";
 import Chat from "../components/chat";
 import WelcomeCard from "../components/welcome-card";
@@ -12,7 +12,7 @@ import Map, { MapRef, ViewState } from "react-map-gl/maplibre";
 import { Popup } from "react-map-gl/maplibre";
 import WebMercatorViewport from "viewport-mercator-project";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { ToolCall } from "ai";
+import { DefaultChatTransport } from "ai";
 import PinMarker from "../components/map/PinMarker";
 import { enrichItineraryWithPlace } from "../utils/places";
 import { groupMarkersByDay, type Marker } from "../utils/markers";
@@ -21,6 +21,21 @@ import type { Session } from "next-auth";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 
 const STORAGE_KEY = "guest_itinerary";
+
+const chatTransport = new DefaultChatTransport<ItineraryUIMessage>({
+  api: "/api/chat",
+});
+
+// Shape of the tool calls encoded in the URL hash (see itinerary-detail.tsx)
+type HashToolCall = { toolName: string; args: unknown };
+
+function textMessage(
+  id: string,
+  role: "user" | "assistant",
+  text: string,
+): ItineraryUIMessage {
+  return { id, role, parts: [{ type: "text", text }] };
+}
 
 export default function Home({ session }: { session: Session | null }) {
   const [itineraryItems, setItineraryItems] = useState<TravelItineraryItem[]>(
@@ -37,13 +52,14 @@ export default function Home({ session }: { session: Session | null }) {
   const [currentItineraryId, setCurrentItineraryId] = useState<string | null>(
     null,
   );
+  const [input, setInput] = useState("");
   const mapRef = useRef<MapRef>(null);
 
-  const { messages, setMessages, input, setInput, handleSubmit, status } =
-    useChat({
-      api: "/api/chat",
-      maxSteps: 2,
-      onToolCall: handleToolCall,
+  // Tools are executed on the server; the client mirrors each call in the UI
+  const { messages, setMessages, sendMessage, regenerate, status, error } =
+    useChat<ItineraryUIMessage>({
+      transport: chatTransport,
+      onToolCall: ({ toolCall }) => handleToolCall(toolCall),
     });
 
   // Restore guest itinerary from localStorage after sign-in
@@ -84,7 +100,7 @@ export default function Home({ session }: { session: Session | null }) {
       const decodedHash = decodeURIComponent(hash);
       const parsed = JSON.parse(decodedHash);
 
-      let toolCalls: unknown[];
+      let toolCalls: HashToolCall[];
       if (Array.isArray(parsed)) {
         toolCalls = parsed;
       } else {
@@ -95,11 +111,10 @@ export default function Home({ session }: { session: Session | null }) {
       }
 
       const loadedItems: TravelItineraryItem[] = [];
-      for (const toolCall of toolCalls) {
-        const tc = toolCall as ToolCall<string, unknown>;
-        handleToolCall({ toolCall: tc });
-        if (tc.toolName === "addItineraryItem") {
-          loadedItems.push(tc.args as TravelItineraryItem);
+      for (const { toolName, args } of toolCalls) {
+        handleToolCall({ toolName, input: args });
+        if (toolName === "addItineraryItem") {
+          loadedItems.push(args as TravelItineraryItem);
         }
       }
 
@@ -121,16 +136,16 @@ export default function Home({ session }: { session: Session | null }) {
           .join("\n");
 
         setMessages([
-          {
-            id: "continue-user",
-            role: "user",
-            content: `I have an existing ${city} itinerary I'd like to continue working on.`,
-          },
-          {
-            id: "continue-assistant",
-            role: "assistant",
-            content: `Welcome back! Here's your current itinerary:\n\n${itemSummary}\n\nWhat changes would you like to make?`,
-          },
+          textMessage(
+            "continue-user",
+            "user",
+            `I have an existing ${city} itinerary I'd like to continue working on.`,
+          ),
+          textMessage(
+            "continue-assistant",
+            "assistant",
+            `Welcome back! Here's your current itinerary:\n\n${itemSummary}\n\nWhat changes would you like to make?`,
+          ),
         ]);
       }
 
@@ -187,19 +202,25 @@ export default function Home({ session }: { session: Session | null }) {
 
   const botActivity = status === "submitted" || status === "streaming";
 
+  const submitMessage = () => {
+    if (!input.trim()) return;
+    sendMessage({ text: input });
+    setInput("");
+  };
+
   const handleStartChat = () => {
     if (input.trim()) {
       setHasStartedChat(true);
       if (messages.length === 0) {
         setMessages([
-          {
-            id: "initial-prompt",
-            role: "assistant",
-            content: "Hello! Where would you like to travel?",
-          },
+          textMessage(
+            "initial-prompt",
+            "assistant",
+            "Hello! Where would you like to travel?",
+          ),
         ]);
       }
-      handleSubmit();
+      submitMessage();
     }
   };
 
@@ -366,7 +387,9 @@ export default function Home({ session }: { session: Session | null }) {
                           botActivity={botActivity}
                           input={input}
                           onInputChange={handleInputChange}
-                          onSubmit={handleSubmit}
+                          onSubmit={submitMessage}
+                          error={error}
+                          onRetry={() => regenerate()}
                         />
                       </motion.div>
                     )}
@@ -427,7 +450,9 @@ export default function Home({ session }: { session: Session | null }) {
                   botActivity={botActivity}
                   input={input}
                   onInputChange={handleInputChange}
-                  onSubmit={handleSubmit}
+                  onSubmit={submitMessage}
+                  error={error}
+                  onRetry={() => regenerate()}
                 />
               )}
             </motion.div>
@@ -437,23 +462,21 @@ export default function Home({ session }: { session: Session | null }) {
     </motion.div>
   );
 
-  function handleToolCall(tool: { toolCall: ToolCall<string, unknown> }) {
-    const toolCall = tool.toolCall as ItineraryToolCall;
+  function handleToolCall(call: { toolName: string; input: unknown }) {
+    const toolCall = call as ItineraryToolCall;
     switch (toolCall.toolName) {
       case "addItineraryItem":
-        return addItineraryItem(toolCall.args);
+        return addItineraryItem(toolCall.input);
       case "removeItineraryItem":
-        return removeItineraryItem(toolCall.args);
+        return removeItineraryItem(toolCall.input);
       case "updateItineraryItem":
-        return updateItineraryItem(toolCall.args);
+        return updateItineraryItem(toolCall.input);
       case "setLocation":
         setBackground("map");
-        const location = toolCall.args.name;
-        zoomToCity(location);
-        return { status: "ok" };
+        zoomToCity(toolCall.input.name);
+        return;
       default:
-        console.warn("Unknown tool call:", toolCall);
-        return { status: "ignored" };
+        console.warn("Unknown tool call:", call);
     }
   }
 
@@ -531,12 +554,10 @@ export default function Home({ session }: { session: Session | null }) {
   }
   function addItineraryItem(item: TravelItineraryItem) {
     setItineraryItems((prev) => [...prev, item]);
-    return { status: "ok" };
   }
 
   function removeItineraryItem(args: { id: string }) {
     setItineraryItems((prev) => prev.filter((item) => item.id !== args.id));
-    return { status: "ok" };
   }
 
   function updateItineraryItem(
@@ -545,6 +566,5 @@ export default function Home({ session }: { session: Session | null }) {
     setItineraryItems((prev) =>
       prev.map((item) => (item.id === args.id ? { ...item, ...args } : item)),
     );
-    return { status: "ok" };
   }
 }

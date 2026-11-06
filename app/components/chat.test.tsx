@@ -1,6 +1,6 @@
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Message } from "@ai-sdk/react";
+import { UIMessage } from "@ai-sdk/react";
 import Chat from "./chat";
 
 vi.mock("framer-motion", () => ({
@@ -36,19 +36,23 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const userMessage: Message = { id: "1", role: "user", content: "Hello there" };
-const assistantMessage: Message = {
-  id: "2",
-  role: "assistant",
-  content: "Hi! How can I help?",
-};
+function textMessage(
+  id: string,
+  role: UIMessage["role"],
+  text: string,
+): UIMessage {
+  return { id, role, parts: [{ type: "text", text }] };
+}
+
+const userMessage = textMessage("1", "user", "Hello there");
+const assistantMessage = textMessage("2", "assistant", "Hi! How can I help?");
 
 function renderChat(
   overrides: Partial<React.ComponentProps<typeof Chat>> = {},
 ) {
   const props = {
     className: "",
-    messages: [] as Message[],
+    messages: [] as UIMessage[],
     botActivity: false,
     input: "",
     onSubmit: vi.fn(),
@@ -69,9 +73,40 @@ describe("Chat", () => {
   });
 
   it("does not render messages with blank content", () => {
-    const blank: Message = { id: "3", role: "user", content: "   " };
+    const blank = textMessage("3", "user", "   ");
     renderChat({ messages: [blank] });
     expect(screen.queryByText("   ")).not.toBeInTheDocument();
+  });
+
+  it("does not render assistant messages that only contain tool calls", () => {
+    const toolOnly: UIMessage = {
+      id: "4",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-setLocation",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: { name: "Paris" },
+          output: { status: "ok" },
+        },
+      ],
+    };
+    renderChat({ messages: [toolOnly] });
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+  });
+
+  it("joins the text parts of a message", () => {
+    const multiPart: UIMessage = {
+      id: "5",
+      role: "user",
+      parts: [
+        { type: "text", text: "Hello " },
+        { type: "text", text: "world" },
+      ],
+    };
+    renderChat({ messages: [multiPart] });
+    expect(screen.getByText("Hello world")).toBeInTheDocument();
   });
 
   it("renders multiple messages", () => {
@@ -112,6 +147,26 @@ describe("Chat", () => {
     renderChat({ botActivity: false });
     const dots = document.querySelectorAll(".animate-bounce");
     expect(dots).toHaveLength(0);
+  });
+
+  it("shows an error message with a retry button when a request fails", async () => {
+    const onRetry = vi.fn();
+    renderChat({ error: new Error("Request failed"), onRetry });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Something went wrong while getting a response.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("hides the error message while the bot is responding", () => {
+    renderChat({ error: new Error("Request failed"), botActivity: true });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("does not show an error message when there is no error", () => {
+    renderChat();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("calls onSubmit when the send button is clicked", async () => {

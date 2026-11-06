@@ -15,6 +15,11 @@ function getItems() {
   return itineraries[SESSION_ID] ?? [];
 }
 
+// Minimal options the AI SDK passes to a tool's execute function
+function executionOptions(toolCallId: string) {
+  return { toolCallId, messages: [], context: {} };
+}
+
 describe("createToolSet", () => {
   // ── addItineraryItem ────────────────────────────────────────────────────────
 
@@ -23,7 +28,7 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       expect(getItems()).toHaveLength(1);
@@ -38,11 +43,11 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
       await tools.addItineraryItem.execute(
         { id: "2", city: "Paris", name: "Louvre Museum" },
-        { toolCallId: "call-2", messages: [], abortSignal: undefined as never },
+        executionOptions("call-2"),
       );
 
       expect(getItems()).toHaveLength(2);
@@ -59,7 +64,7 @@ describe("createToolSet", () => {
           startTime: "09:00",
           endTime: "12:00",
         },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       expect(getItems()[0]).toMatchObject({
@@ -73,7 +78,7 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       const result = await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       expect(result).toMatchObject({ id: "1", name: "Eiffel Tower" });
@@ -87,12 +92,12 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       await tools.removeItineraryItem.execute(
         { id: "1" },
-        { toolCallId: "call-2", messages: [], abortSignal: undefined as never },
+        executionOptions("call-2"),
       );
 
       expect(getItems()).toHaveLength(0);
@@ -102,12 +107,12 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       await tools.removeItineraryItem.execute(
         { id: "non-existent" },
-        { toolCallId: "call-2", messages: [], abortSignal: undefined as never },
+        executionOptions("call-2"),
       );
 
       expect(getItems()).toHaveLength(1);
@@ -117,7 +122,7 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       const result = await tools.removeItineraryItem.execute(
         { id: "1" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       expect(result).toEqual({ id: "1" });
@@ -131,12 +136,12 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       await tools.updateItineraryItem.execute(
         { id: "1", city: "Paris", name: "Arc de Triomphe" },
-        { toolCallId: "call-2", messages: [], abortSignal: undefined as never },
+        executionOptions("call-2"),
       );
 
       expect(getItems()[0].name).toBe("Arc de Triomphe");
@@ -146,12 +151,12 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       await tools.updateItineraryItem.execute(
         { id: "1", city: "Paris", date: "2026-06-15", startTime: "10:00" },
-        { toolCallId: "call-2", messages: [], abortSignal: undefined as never },
+        executionOptions("call-2"),
       );
 
       expect(getItems()[0]).toMatchObject({
@@ -165,12 +170,12 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       await tools.updateItineraryItem.execute(
         { id: "non-existent", city: "Paris", name: "Ghost" },
-        { toolCallId: "call-2", messages: [], abortSignal: undefined as never },
+        executionOptions("call-2"),
       );
 
       expect(getItems()).toHaveLength(1);
@@ -181,15 +186,39 @@ describe("createToolSet", () => {
       const tools = createToolSet(SESSION_ID);
       await tools.addItineraryItem.execute(
         { id: "1", city: "Paris", name: "Eiffel Tower" },
-        { toolCallId: "call-1", messages: [], abortSignal: undefined as never },
+        executionOptions("call-1"),
       );
 
       const result = await tools.updateItineraryItem.execute(
         { id: "1", city: "Paris", name: "Updated" },
-        { toolCallId: "call-2", messages: [], abortSignal: undefined as never },
+        executionOptions("call-2"),
       );
 
       expect(result).toMatchObject({ id: "1", name: "Updated" });
+    });
+  });
+
+  // ── setLocation ─────────────────────────────────────────────────────────────
+
+  describe("setLocation", () => {
+    it("acknowledges the location", async () => {
+      const tools = createToolSet(SESSION_ID);
+      const result = await tools.setLocation.execute(
+        { name: "Paris" },
+        executionOptions("call-1"),
+      );
+
+      expect(result).toEqual({ status: "ok" });
+    });
+
+    it("does not change the itinerary", async () => {
+      const tools = createToolSet(SESSION_ID);
+      await tools.setLocation.execute(
+        { name: "Paris" },
+        executionOptions("call-1"),
+      );
+
+      expect(getItems()).toHaveLength(0);
     });
   });
 });

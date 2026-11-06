@@ -1,15 +1,17 @@
 import React, { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Message } from "@ai-sdk/react";
+import { UIMessage } from "@ai-sdk/react";
 import ChatInput from "./chat-input";
 import TypingIndicator from "../api/chat/typing-indicator"; // Adjust path
 import { twMerge } from "tailwind-merge";
 
 interface ChatProps {
   className: string;
-  messages: Message[];
+  messages: UIMessage[];
   botActivity: boolean;
+  error?: Error;
+  onRetry?: () => void;
   input: string;
   onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -24,6 +26,8 @@ const Chat: React.FC<ChatProps> = ({
   onInputChange,
   onKeyDown,
   onSubmit,
+  error,
+  onRetry,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +58,8 @@ const Chat: React.FC<ChatProps> = ({
     >
       <div className="scrollbar scrollbar-track-transparent scrollbar-thumb-gray-400/50 scrollbar-thumb-rounded-full scrollbar-w-1.5 flex-grow space-y-5 overflow-y-auto p-6">
         {messages
-          .filter((message) => message.content.trim())
+          .map((message) => ({ ...message, text: getMessageText(message) }))
+          .filter((message) => message.text.trim())
           .map((message) => (
             <div
               key={message.id}
@@ -70,14 +75,31 @@ const Chat: React.FC<ChatProps> = ({
                 }`}
               >
                 {message.role === "assistant" ? (
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                  <ReactMarkdown>{message.text}</ReactMarkdown>
                 ) : (
-                  message.content
+                  message.text
                 )}
               </div>
             </div>
           ))}
         {botActivity && <TypingIndicator />}
+        {error && !botActivity && (
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            Something went wrong while getting a response.
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="ml-2 font-semibold underline hover:text-red-900"
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        )}
         <div ref={messagesEndRef} /> {/* For auto-scrolling */}
       </div>
       {/* Input area */}
@@ -96,5 +118,13 @@ const Chat: React.FC<ChatProps> = ({
     </motion.div>
   );
 };
+
+// Tool calls are shown in the itinerary panel, so only text parts are rendered
+function getMessageText(message: UIMessage): string {
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+}
 
 export default Chat;
