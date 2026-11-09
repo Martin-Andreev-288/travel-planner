@@ -57,18 +57,54 @@ model ChatMessage {
   @@index([createdAt])
 }
 
+// NoteFolder model - organises notes into nested, user-created folders (unlimited depth)
+model NoteFolder {
+  id             String       @id @default(cuid())
+  name           String
+  order          Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentFolderId String?
+  parentFolder   NoteFolder?  @relation("NoteFolderHierarchy", fields: [parentFolderId], references: [id], onDelete: Cascade)
+  childFolders   NoteFolder[] @relation("NoteFolderHierarchy")
+  notes          Note[]
+
+  @@index([userId])
+  @@index([parentFolderId])
+}
+
+// Note model - a single Markdown document, optionally stored inside a folder
+model Note {
+  id        String      @id @default(cuid())
+  title     String
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId  String?
+  folder    NoteFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([folderId])
+}
+
 // User model - stores user information
 model User {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   name          String?
-  email         String      @unique
+  email         String       @unique
   emailVerified DateTime?
   image         String?
   password      String? // For credentials auth
-  role          String      @default("user")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  role          String       @default("user")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   itineraries   Itinerary[]
+  notes         Note[]
+  noteFolders   NoteFolder[]
 
   // NextAuth adapter fields
   accounts Account[]
