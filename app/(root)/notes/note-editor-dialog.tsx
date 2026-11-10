@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Loader2, X } from "lucide-react";
+import type { ActionResult } from "./types";
+import { useModalDialog } from "./use-modal-dialog";
 
 export type NoteDraft = { title: string; content: string };
 
@@ -9,7 +11,7 @@ interface NoteEditorDialogProps {
   open: boolean;
   heading: string;
   initial: NoteDraft;
-  onSave: (draft: NoteDraft) => Promise<{ success: boolean; message: string }>;
+  onSave: (draft: NoteDraft) => Promise<ActionResult>;
   onClose: () => void;
 }
 
@@ -20,18 +22,11 @@ export default function NoteEditorDialog({
   onSave,
   onClose,
 }: NoteEditorDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const dialogRef = useModalDialog(open);
   const [title, setTitle] = useState(initial.title);
   const [content, setContent] = useState(initial.content);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const el = dialogRef.current;
-    if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
-  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

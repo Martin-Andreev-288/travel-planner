@@ -1,24 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { FolderInput, Loader2, Pencil, Trash2 } from "lucide-react";
 import { deleteNote } from "@/app/actions/note-actions";
 import ConfirmDialog from "@/app/components/shared/confirm-dialog";
-
-export type NoteSummary = {
-  id: string;
-  title: string;
-  preview: string;
-  updatedOn: string;
-};
+import type { NoteSummary } from "./types";
 
 interface NoteCardProps {
   note: NoteSummary;
   isOpening: boolean;
+  isDragging: boolean;
   onEdit: () => void;
+  // Omitted when there is no folder to move the note into
+  onMove?: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }
 
-export default function NoteCard({ note, isOpening, onEdit }: NoteCardProps) {
+export default function NoteCard({
+  note,
+  isOpening,
+  isDragging,
+  onEdit,
+  onMove,
+  onDragStart,
+  onDragEnd,
+}: NoteCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -30,7 +37,19 @@ export default function NoteCard({ note, isOpening, onEdit }: NoteCardProps) {
   };
 
   return (
-    <div className="flex flex-col rounded-xl bg-white p-5 shadow-md transition-shadow hover:shadow-lg">
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        // Firefox only starts a drag when some data is set
+        e.dataTransfer.setData("text/plain", note.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      className={`flex cursor-grab flex-col rounded-xl bg-white p-5 shadow-md transition hover:shadow-lg active:cursor-grabbing ${
+        isDragging ? "opacity-50" : ""
+      }`}
+    >
       <h2 className="mb-2 truncate text-lg font-bold text-[#2c3e50]">
         {note.title}
       </h2>
@@ -46,11 +65,11 @@ export default function NoteCard({ note, isOpening, onEdit }: NoteCardProps) {
       <p className="mb-4 text-xs text-gray-400">Updated {note.updatedOn}</p>
 
       {/* Actions */}
-      <div className="mt-auto flex gap-2">
+      <div className="mt-auto flex flex-wrap gap-2">
         <button
           onClick={onEdit}
           disabled={isOpening || isDeleting}
-          className="flex items-center gap-1.5 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-60"
         >
           {isOpening ? (
             <Loader2 size={14} className="animate-spin" />
@@ -59,10 +78,20 @@ export default function NoteCard({ note, isOpening, onEdit }: NoteCardProps) {
           )}
           Edit
         </button>
+        {onMove && (
+          <button
+            onClick={onMove}
+            disabled={isDeleting}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
+          >
+            <FolderInput size={14} />
+            Move
+          </button>
+        )}
         <button
           onClick={() => setShowConfirm(true)}
           disabled={isDeleting}
-          className="flex items-center gap-1.5 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
         >
           {isDeleting ? (
             <Loader2 size={14} className="animate-spin" />
