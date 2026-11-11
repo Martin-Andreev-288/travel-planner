@@ -26,6 +26,8 @@ export default async function NotesPage() {
           title: note.title,
           preview: note.preview,
           folderId: note.folderId,
+          createdAt: note.createdAt.toISOString(),
+          updatedAt: note.updatedAt.toISOString(),
           // Formatted on the server so the date can't differ between the
           // server render and the browser's time zone
           updatedOn: note.updatedAt.toLocaleDateString("en-GB", {

@@ -33,6 +33,7 @@
     "react-dom": "^19.3.0",
     "react-map-gl": "^8.0.4",
     "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "viewport-mercator-project": "^7.0.4",
     "zod": "^3.25.76"
   },

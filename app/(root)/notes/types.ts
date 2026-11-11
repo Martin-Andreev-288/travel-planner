@@ -3,6 +3,9 @@ export type NoteSummary = {
   title: string;
   preview: string;
   updatedOn: string;
+  // ISO timestamps, used for sorting
+  createdAt: string;
+  updatedAt: string;
   folderId: string | null;
 };
 

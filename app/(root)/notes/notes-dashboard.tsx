@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { CornerLeftUp, FolderPlus, Plus, StickyNote, X } from "lucide-react";
+import { useId, useState } from "react";
+import {
+  ArrowDownUp,
+  CornerLeftUp,
+  FolderPlus,
+  Plus,
+  Search,
+  SearchX,
+  StickyNote,
+  X,
+} from "lucide-react";
 import { createNote, getNote, updateNote } from "@/app/actions/note-actions";
 import {
   createNoteFolder,
@@ -16,6 +25,7 @@ import {
   buildItemsMap,
   flattenFolderOptions,
   getDescendantFolderIds,
+  getVisibleFolderIds,
 } from "@/lib/folder-tree";
 import FolderNameDialog from "./folder-name-dialog";
 import {
@@ -25,6 +35,14 @@ import {
 } from "./folder-tree-view";
 import MoveDialog from "./move-dialog";
 import NoteEditorDialog, { type NoteDraft } from "./note-editor-dialog";
+import {
+  DEFAULT_DIRECTION,
+  SORT_OPTIONS,
+  directionLabel,
+  sortNotes,
+  type SortBy,
+  type SortDirection,
+} from "./note-sorting";
 import type {
   ActionResult,
   MovableItem,
@@ -74,6 +92,12 @@ export default function NotesDashboard({
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [isOverTopLevel, setIsOverTopLevel] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortBy>("updatedAt");
+  const [sortDirection, setSortDirection] = useState<SortDirection>(
+    DEFAULT_DIRECTION.updatedAt,
+  );
+  const sortSelectId = useId();
 
   const folderById = new Map(folders.map((folder) => [folder.id, folder]));
 
@@ -233,10 +257,28 @@ export default function NotesDashboard({
     if (item && allowed) void runAction(() => moveItem(item, targetFolderId));
   };
 
+  // ── Search and sort ────────────────────────────────────────────────────────
+
+  const searchTerm = search.trim().toLowerCase();
+  const isSearching = searchTerm !== "";
+  const visibleFolderIds = getVisibleFolderIds(folders, notes, searchTerm);
+  // A matching top-level note has no folder, so it isn't in visibleFolderIds
+  const hasSearchMatch =
+    notes.some((note) => note.title.toLowerCase().includes(searchTerm)) ||
+    folders.some((folder) => folder.name.toLowerCase().includes(searchTerm));
+
+  const changeSort = (value: SortBy) => {
+    setSortBy(value);
+    setSortDirection(DEFAULT_DIRECTION[value]);
+  };
+
   const tree: NotesTree = {
     childrenMap: buildChildrenMap(folders),
-    notesMap: buildItemsMap(notes),
+    // Notes are sorted before grouping, so every folder shows them in order
+    notesMap: buildItemsMap(sortNotes(notes, sortBy, sortDirection)),
     collapsed,
+    searchTerm,
+    visibleFolderIds,
     hasFolders: folders.length > 0,
     openingNoteId,
     deletingFolderId,
@@ -343,6 +385,64 @@ export default function NotesDashboard({
         </div>
       ) : (
         <>
+          {notes.length + folders.length > 1 && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="relative w-full sm:w-72">
+                <Search
+                  size={16}
+                  className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && setSearch("")}
+                  aria-label="Search notes and folders"
+                  placeholder="Search notes and folders…"
+                  className="w-full rounded-lg border border-gray-300 bg-white py-2 pr-9 pl-9 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:text-gray-600"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label htmlFor={sortSelectId} className="text-sm text-gray-500">
+                  Sort by
+                </label>
+                <select
+                  id={sortSelectId}
+                  value={sortBy}
+                  onChange={(e) => changeSort(e.target.value as SortBy)}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() =>
+                    setSortDirection((value) =>
+                      value === "asc" ? "desc" : "asc",
+                    )
+                  }
+                  title="Reverse the order"
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <ArrowDownUp size={14} />
+                  {directionLabel(sortBy, sortDirection)}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Only while dragging something that is inside a folder */}
           {dragItem && canDropOn(null) && (
             <div
@@ -366,7 +466,16 @@ export default function NotesDashboard({
             </div>
           )}
 
-          <FolderContents folderId={null} tree={tree} />
+          {isSearching && !hasSearchMatch ? (
+            <div className="flex flex-col items-center rounded-xl bg-white px-6 py-10 text-center shadow-md">
+              <SearchX size={32} className="mb-3 text-gray-300" />
+              <p className="text-sm text-gray-500">
+                No notes or folders match &ldquo;{search.trim()}&rdquo;.
+              </p>
+            </div>
+          ) : (
+            <FolderContents folderId={null} tree={tree} />
+          )}
         </>
       )}
 

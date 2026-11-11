@@ -3,6 +3,7 @@ import {
   buildItemsMap,
   flattenFolderOptions,
   getDescendantFolderIds,
+  getVisibleFolderIds,
 } from "./folder-tree";
 
 // europe → germany → berlin, europe → france, and a separate asia
@@ -73,5 +74,40 @@ describe("flattenFolderOptions", () => {
   it("skips excluded folders together with their subfolders", () => {
     const options = flattenFolderOptions(folders, new Set(["germany"]));
     expect(options.map((o) => o.id)).toEqual(["europe", "france", "asia"]);
+  });
+});
+
+describe("getVisibleFolderIds", () => {
+  const items = [
+    { folderId: "berlin", title: "Museum Island" },
+    { folderId: "france", title: "Louvre tickets" },
+    { folderId: null, title: "Packing list" },
+  ];
+
+  it("returns nothing for an empty or blank term", () => {
+    expect(getVisibleFolderIds(folders, items, "").size).toBe(0);
+    expect(getVisibleFolderIds(folders, items, "   ").size).toBe(0);
+  });
+
+  it("keeps the whole path to a note that matches deep in the tree", () => {
+    expect(getVisibleFolderIds(folders, items, "museum")).toEqual(
+      new Set(["berlin", "germany", "europe"]),
+    );
+  });
+
+  it("includes folders whose own name matches, with their ancestors", () => {
+    expect(getVisibleFolderIds(folders, items, "GERMANY")).toEqual(
+      new Set(["germany", "europe"]),
+    );
+  });
+
+  it("finds matches in several branches at once", () => {
+    expect(getVisibleFolderIds(folders, items, "a")).toEqual(
+      new Set(["europe", "germany", "berlin", "france", "asia"]),
+    );
+  });
+
+  it("ignores top-level notes, which don't belong to any folder", () => {
+    expect(getVisibleFolderIds(folders, items, "packing").size).toBe(0);
   });
 });

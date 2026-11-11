@@ -53,13 +53,20 @@ const folders: NoteFolder[] = [
   { id: "paris", name: "Paris", parentFolderId: null, order: 1 },
 ];
 
-function note(id: string, title: string, folderId: string | null) {
+function note(
+  id: string,
+  title: string,
+  folderId: string | null,
+  dates = { createdAt: "2026-09-01", updatedAt: "2026-09-01" },
+) {
   return {
     id,
     title,
     preview: `${title} preview`,
     updatedOn: "1 September 2026",
     folderId,
+    createdAt: `${dates.createdAt}T10:00:00.000Z`,
+    updatedAt: `${dates.updatedAt}T10:00:00.000Z`,
   } satisfies NoteSummary;
 }
 
@@ -357,5 +364,137 @@ describe("NotesDashboard", () => {
       "n-museums",
       null,
     );
+  });
+
+  // ── Search ──────────────────────────────────────────────────────────────────
+
+  describe("search", () => {
+    const searchBox = () =>
+      screen.getByRole("textbox", { name: "Search notes and folders" });
+
+    it("isn't offered when there is only one note", () => {
+      renderDashboard({
+        notes: [note("n1", "Packing list", null)],
+        folders: [],
+      });
+      expect(
+        screen.queryByRole("textbox", { name: "Search notes and folders" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows matching notes together with the folders leading to them", async () => {
+      renderDashboard();
+      await userEvent.type(searchBox(), "museum");
+
+      expect(screen.getByText("Museum Island")).toBeInTheDocument();
+      expect(screen.queryByText("Packing list")).not.toBeInTheDocument();
+      expect(screen.queryByText("Berlin tips")).not.toBeInTheDocument();
+      // Berlin and Museums lead to the match, Paris doesn't
+      expect(folderRow("Berlin")).toBeInTheDocument();
+      expect(folderRow("Museums")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Collapse folder Paris" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows everything inside a folder whose name matches", async () => {
+      renderDashboard();
+      await userEvent.type(searchBox(), "museums");
+      // "Museum Island" doesn't contain "museums", but its folder does
+      expect(screen.getByText("Museum Island")).toBeInTheDocument();
+      expect(screen.queryByText("Berlin tips")).not.toBeInTheDocument();
+    });
+
+    it("ignores case and surrounding spaces", async () => {
+      renderDashboard();
+      await userEvent.type(searchBox(), "  PACKING ");
+      expect(screen.getByText("Packing list")).toBeInTheDocument();
+      expect(screen.queryByText("Museum Island")).not.toBeInTheDocument();
+    });
+
+    it("says so when nothing matches", async () => {
+      renderDashboard();
+      await userEvent.type(searchBox(), "zzz");
+      expect(
+        screen.getByText("No notes or folders match “zzz”."),
+      ).toBeInTheDocument();
+    });
+
+    it("expands collapsed folders while searching", async () => {
+      renderDashboard();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Collapse folder Berlin" }),
+      );
+      expect(screen.queryByText("Museum Island")).not.toBeInTheDocument();
+
+      await userEvent.type(searchBox(), "museum");
+      expect(screen.getByText("Museum Island")).toBeInTheDocument();
+    });
+
+    it("clears the search with the clear button and with Escape", async () => {
+      renderDashboard();
+      await userEvent.type(searchBox(), "museum");
+      await userEvent.click(
+        screen.getByRole("button", { name: "Clear search" }),
+      );
+      expect(searchBox()).toHaveValue("");
+      expect(screen.getByText("Packing list")).toBeInTheDocument();
+
+      await userEvent.type(searchBox(), "museum{Escape}");
+      expect(searchBox()).toHaveValue("");
+    });
+  });
+
+  // ── Sort ────────────────────────────────────────────────────────────────────
+
+  describe("sort", () => {
+    const sortNotes = [
+      note("a", "Bravo", null, {
+        createdAt: "2026-09-01",
+        updatedAt: "2026-09-10",
+      }),
+      note("b", "Alpha", null, {
+        createdAt: "2026-09-03",
+        updatedAt: "2026-09-05",
+      }),
+      note("c", "Charlie", null, {
+        createdAt: "2026-09-02",
+        updatedAt: "2026-09-20",
+      }),
+    ];
+    const order = () =>
+      [...document.querySelectorAll("[draggable] h2")].map(
+        (h) => h.textContent,
+      );
+    const renderSorted = () =>
+      renderDashboard({ notes: sortNotes, folders: [] });
+
+    it("starts with the most recently updated note first", () => {
+      renderSorted();
+      expect(screen.getByLabelText("Sort by")).toHaveValue("updatedAt");
+      expect(order()).toEqual(["Charlie", "Bravo", "Alpha"]);
+    });
+
+    it("sorts by title A → Z, and reverses with the order button", async () => {
+      renderSorted();
+      await userEvent.selectOptions(screen.getByLabelText("Sort by"), "title");
+      expect(order()).toEqual(["Alpha", "Bravo", "Charlie"]);
+
+      await userEvent.click(screen.getByRole("button", { name: "A → Z" }));
+      expect(order()).toEqual(["Charlie", "Bravo", "Alpha"]);
+      expect(screen.getByRole("button", { name: "Z → A" })).toBeInTheDocument();
+    });
+
+    it("sorts by creation date, newest first", async () => {
+      renderSorted();
+      await userEvent.selectOptions(
+        screen.getByLabelText("Sort by"),
+        "createdAt",
+      );
+      expect(order()).toEqual(["Alpha", "Charlie", "Bravo"]);
+      expect(
+        screen.getByRole("button", { name: "Newest first" }),
+      ).toBeInTheDocument();
+    });
   });
 });

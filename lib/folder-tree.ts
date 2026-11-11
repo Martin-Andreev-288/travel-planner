@@ -78,3 +78,40 @@ export function flattenFolderOptions<F extends TreeFolder & { name: string }>(
   walk(null, 0);
   return result;
 }
+
+// Folders that stay visible while searching for `term`: a folder is shown if
+// its own name matches, if a note directly inside it matches by title, or if
+// any folder below it does, so a match deep in the tree keeps its whole path
+// visible. Returns an empty set for an empty term.
+export function getVisibleFolderIds<
+  F extends TreeFolder & { name: string },
+  T extends { folderId: string | null; title: string },
+>(folders: F[], items: T[], term: string) {
+  const normalized = term.trim().toLowerCase();
+  const visible = new Set<string>();
+
+  if (!normalized) return visible;
+
+  const childrenMap = buildChildrenMap(folders);
+  const itemsMap = buildItemsMap(items);
+
+  function check(folder: F): boolean {
+    let hasMatch = folder.name.toLowerCase().includes(normalized);
+
+    for (const item of itemsMap.get(folder.id) ?? []) {
+      if (item.title.toLowerCase().includes(normalized)) hasMatch = true;
+    }
+
+    // Every child is checked (no early exit) so all matching branches are found
+    for (const child of childrenMap.get(folder.id) ?? []) {
+      if (check(child)) hasMatch = true;
+    }
+
+    if (hasMatch) visible.add(folder.id);
+    return hasMatch;
+  }
+
+  for (const folder of childrenMap.get(null) ?? []) check(folder);
+
+  return visible;
+}

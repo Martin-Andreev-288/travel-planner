@@ -21,6 +21,10 @@ export type NotesTree = {
   childrenMap: Map<string | null, NoteFolder[]>;
   notesMap: Map<string | null, NoteSummary[]>;
   collapsed: Set<string>;
+  // Lowercased and trimmed; empty when not searching
+  searchTerm: string;
+  // Folders that match the search or contain a match (see getVisibleFolderIds)
+  visibleFolderIds: Set<string>;
   hasFolders: boolean;
   openingNoteId: string | null;
   deletingFolderId: string | null;
@@ -46,16 +50,26 @@ function countLabel(count: number, singular: string, plural: string) {
 }
 
 // A folder's own notes first, then its subfolders, so the notes stay right
-// under the folder's name instead of below every expanded subfolder
+// under the folder's name instead of below every expanded subfolder.
+// While searching, only matching notes and folders on the way to a match are
+// shown, except inside a folder whose own name matches (`showAll`), which is
+// shown in full so it can be browsed.
 export function FolderContents({
   folderId,
   tree,
+  showAll = false,
 }: {
   folderId: string | null;
   tree: NotesTree;
+  showAll?: boolean;
 }) {
-  const notes = tree.notesMap.get(folderId) ?? [];
-  const childFolders = tree.childrenMap.get(folderId) ?? [];
+  const filter = tree.searchTerm !== "" && !showAll;
+  const notes = (tree.notesMap.get(folderId) ?? []).filter(
+    (note) => !filter || note.title.toLowerCase().includes(tree.searchTerm),
+  );
+  const childFolders = (tree.childrenMap.get(folderId) ?? []).filter(
+    (folder) => !filter || tree.visibleFolderIds.has(folder.id),
+  );
 
   if (folderId && notes.length === 0 && childFolders.length === 0) {
     return (
@@ -93,7 +107,12 @@ export function FolderContents({
       {childFolders.length > 0 && (
         <div className="flex flex-col gap-3">
           {childFolders.map((folder) => (
-            <FolderItem key={folder.id} folder={folder} tree={tree} />
+            <FolderItem
+              key={folder.id}
+              folder={folder}
+              tree={tree}
+              showAll={showAll}
+            />
           ))}
         </div>
       )}
@@ -101,8 +120,20 @@ export function FolderContents({
   );
 }
 
-function FolderItem({ folder, tree }: { folder: NoteFolder; tree: NotesTree }) {
-  const isCollapsed = tree.collapsed.has(folder.id);
+function FolderItem({
+  folder,
+  tree,
+  showAll,
+}: {
+  folder: NoteFolder;
+  tree: NotesTree;
+  showAll: boolean;
+}) {
+  const isSearching = tree.searchTerm !== "";
+  const nameMatches =
+    isSearching && folder.name.toLowerCase().includes(tree.searchTerm);
+  // Search results are always shown expanded
+  const isCollapsed = !isSearching && tree.collapsed.has(folder.id);
   const isDragging =
     tree.dragItem?.kind === "folder" && tree.dragItem.id === folder.id;
   const isDropTarget = tree.dragOverFolderId === folder.id;
@@ -153,9 +184,10 @@ function FolderItem({ folder, tree }: { folder: NoteFolder; tree: NotesTree }) {
       >
         <button
           onClick={() => tree.onToggleCollapse(folder.id)}
+          disabled={isSearching}
           aria-expanded={!isCollapsed}
           aria-label={`${isCollapsed ? "Expand" : "Collapse"} folder ${folder.name}`}
-          className="rounded-md p-0.5 text-gray-500 transition-colors hover:bg-gray-100"
+          className="rounded-md p-0.5 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
         >
           <ChevronRight
             size={16}
@@ -229,7 +261,11 @@ function FolderItem({ folder, tree }: { folder: NoteFolder; tree: NotesTree }) {
 
       {!isCollapsed && (
         <div className="mt-3 ml-3 border-l-2 border-gray-200 pl-4">
-          <FolderContents folderId={folder.id} tree={tree} />
+          <FolderContents
+            folderId={folder.id}
+            tree={tree}
+            showAll={showAll || nameMatches}
+          />
         </div>
       )}
     </div>
