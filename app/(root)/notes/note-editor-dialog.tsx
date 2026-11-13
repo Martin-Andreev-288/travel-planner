@@ -20,6 +20,8 @@ interface NoteEditorDialogProps {
   open: boolean;
   heading: string;
   initial: NoteDraft;
+  // "preview" shows the rendered note first, for opening a note to read it
+  initialMode?: "write" | "preview";
   onSave: (draft: NoteDraft) => Promise<ActionResult>;
   onClose: () => void;
 }
@@ -31,6 +33,7 @@ export default function NoteEditorDialog({
   open,
   heading,
   initial,
+  initialMode = "write",
   onSave,
   onClose,
 }: NoteEditorDialogProps) {
@@ -39,7 +42,7 @@ export default function NoteEditorDialog({
   const contentId = useId();
   const [title, setTitle] = useState(initial.title);
   const [content, setContent] = useState(initial.content);
-  const [isPreview, setIsPreview] = useState(false);
+  const [isPreview, setIsPreview] = useState(initialMode === "preview");
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   // Set when fullscreen is requested from Write mode: the preview has to be

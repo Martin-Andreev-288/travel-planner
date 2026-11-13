@@ -10,6 +10,8 @@ interface NoteCardProps {
   note: NoteSummary;
   isOpening: boolean;
   isDragging: boolean;
+  // Opens the note for reading
+  onOpen: () => void;
   onEdit: () => void;
   // Omitted when there is no folder to move the note into
   onMove?: () => void;
@@ -21,6 +23,7 @@ export default function NoteCard({
   note,
   isOpening,
   isDragging,
+  onOpen,
   onEdit,
   onMove,
   onDragStart,
@@ -46,12 +49,25 @@ export default function NoteCard({
         onDragStart();
       }}
       onDragEnd={onDragEnd}
-      className={`flex cursor-grab flex-col rounded-xl bg-white p-5 shadow-md transition hover:shadow-lg active:cursor-grabbing ${
+      // A click anywhere on the card opens the note, except on the card's own
+      // buttons and inside its delete confirmation dialog. The title button
+      // below is the same action for keyboard and screen reader users.
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button, a, dialog")) return;
+        onOpen();
+      }}
+      className={`flex cursor-pointer flex-col rounded-xl bg-white p-5 shadow-md transition hover:shadow-lg active:cursor-grabbing ${
         isDragging ? "opacity-50" : ""
       }`}
     >
-      <h2 className="mb-2 truncate text-lg font-bold text-[#2c3e50]">
-        {note.title}
+      <h2 className="mb-2 text-lg font-bold text-[#2c3e50]">
+        <button
+          onClick={onOpen}
+          title="Open note"
+          className="block w-full truncate rounded text-left hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-500"
+        >
+          {note.title}
+        </button>
       </h2>
 
       {note.preview ? (

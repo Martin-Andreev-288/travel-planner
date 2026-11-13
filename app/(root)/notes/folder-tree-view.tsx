@@ -32,6 +32,7 @@ export type NotesTree = {
   dragOverFolderId: string | null;
   canDropOn: (folderId: string | null) => boolean;
   onToggleCollapse: (folderId: string) => void;
+  onOpenNote: (note: NoteSummary) => void;
   onEditNote: (note: NoteSummary) => void;
   onMove: (item: MovableItem) => void;
   onNewNote: (folderId: string) => void;
@@ -89,6 +90,7 @@ export function FolderContents({
               isDragging={
                 tree.dragItem?.kind === "note" && tree.dragItem.id === note.id
               }
+              onOpen={() => tree.onOpenNote(note)}
               onEdit={() => tree.onEditNote(note)}
               onMove={
                 tree.hasFolders
@@ -176,7 +178,14 @@ function FolderItem({
           e.preventDefault();
           tree.onDrop(folder.id);
         }}
-        className={`flex cursor-grab items-center gap-2 rounded-xl px-3 py-2.5 shadow-sm transition active:cursor-grabbing ${
+        // Clicking the row (e.g. the folder name) opens/closes the folder like
+        // the arrow button does; the action buttons keep their own behaviour
+        onClick={(e) => {
+          if (isSearching || (e.target as HTMLElement).closest("button"))
+            return;
+          tree.onToggleCollapse(folder.id);
+        }}
+        className={`flex items-center ${isSearching ? "cursor-grab" : "cursor-pointer"} gap-2 rounded-xl px-3 py-2.5 shadow-sm transition active:cursor-grabbing ${
           isDropTarget
             ? "bg-blue-50 ring-2 ring-blue-400"
             : "bg-white ring-1 ring-gray-200"

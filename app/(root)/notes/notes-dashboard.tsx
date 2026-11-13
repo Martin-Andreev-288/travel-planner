@@ -53,7 +53,13 @@ import type {
 type EditorState =
   | { open: false }
   | { open: true; mode: "create"; folderId: string | null }
-  | { open: true; mode: "edit"; noteId: string; initial: NoteDraft };
+  | {
+      open: true;
+      mode: "edit";
+      noteId: string;
+      initial: NoteDraft;
+      startInPreview: boolean;
+    };
 
 type FolderFormState =
   | { open: false }
@@ -119,7 +125,10 @@ export default function NotesDashboard({
 
   // ── Notes ──────────────────────────────────────────────────────────────────
 
-  const openEditor = async (noteId: string) => {
+  // `read` opens the note in Preview (clicking the card), otherwise in Write
+  // (the Edit button). An empty note always opens in Write.
+  const openEditor = async (noteId: string, read: boolean) => {
+    if (openingNoteId) return;
     setError(null);
     setOpeningNoteId(noteId);
     const result = await getNote(noteId);
@@ -135,6 +144,7 @@ export default function NotesDashboard({
       mode: "edit",
       noteId,
       initial: { title: result.note.title, content: result.note.content },
+      startInPreview: read && result.note.content.trim() !== "",
     });
   };
 
@@ -295,7 +305,8 @@ export default function NotesDashboard({
         }
         return next;
       }),
-    onEditNote: (note) => openEditor(note.id),
+    onOpenNote: (note) => openEditor(note.id, true),
+    onEditNote: (note) => openEditor(note.id, false),
     onMove: (item) => setMove({ open: true, ...item }),
     onNewNote: newNote,
     onNewFolder: newFolder,
@@ -501,6 +512,11 @@ export default function NotesDashboard({
           editor.open && editor.mode === "edit"
             ? editor.initial
             : { title: "", content: "" }
+        }
+        initialMode={
+          editor.open && editor.mode === "edit" && editor.startInPreview
+            ? "preview"
+            : "write"
         }
         onSave={saveNote}
         onClose={() => setEditor({ open: false })}

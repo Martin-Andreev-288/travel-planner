@@ -497,4 +497,99 @@ describe("NotesDashboard", () => {
       ).toBeInTheDocument();
     });
   });
+
+  // ── Opening notes and folders ───────────────────────────────────────────────
+
+  describe("opening", () => {
+    const fullNote = (content: string) => ({
+      success: true,
+      note: { id: "n-root", title: "Packing list", content },
+    });
+
+    it("opens a note for reading when its card is clicked", async () => {
+      noteActions.getNote.mockResolvedValue(fullNote("# Passport"));
+      renderDashboard();
+
+      await userEvent.click(screen.getByText("Packing list preview"));
+
+      expect(noteActions.getNote).toHaveBeenCalledWith("n-root");
+      const heading = await screen.findByRole("heading", {
+        level: 1,
+        name: "Passport",
+      });
+      // In Preview there is no Content textarea, so find the dialog via the note
+      expect(
+        dialogOf(heading).getByRole("button", { name: "Preview" }),
+      ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("opens a note from the keyboard through its title", async () => {
+      noteActions.getNote.mockResolvedValue(fullNote("# Passport"));
+      renderDashboard();
+
+      screen.getByRole("button", { name: "Packing list" }).focus();
+      await userEvent.keyboard("{Enter}");
+
+      expect(noteActions.getNote).toHaveBeenCalledWith("n-root");
+      expect(
+        await screen.findByRole("heading", { level: 1, name: "Passport" }),
+      ).toBeInTheDocument();
+    });
+
+    it("opens a note for editing with the Edit button", async () => {
+      noteActions.getNote.mockResolvedValue(fullNote("# Passport"));
+      renderDashboard();
+
+      await userEvent.click(
+        within(noteCard("Packing list")).getByRole("button", { name: "Edit" }),
+      );
+
+      expect(await screen.findByLabelText("Content")).toHaveValue("# Passport");
+    });
+
+    it("opens an empty note for writing, even when its card is clicked", async () => {
+      noteActions.getNote.mockResolvedValue(fullNote(""));
+      renderDashboard();
+
+      await userEvent.click(screen.getByText("Packing list preview"));
+
+      expect(await screen.findByLabelText("Content")).toHaveValue("");
+    });
+
+    it("doesn't open the note when the card's own buttons are used", async () => {
+      renderDashboard();
+      const card = noteCard("Packing list");
+
+      await userEvent.click(within(card).getByRole("button", { name: "Move" }));
+      await userEvent.click(
+        within(card).getByRole("button", { name: "Delete" }),
+      );
+      const confirm = screen.getByText(
+        'Are you sure you want to delete "Packing list"? This action cannot be undone.',
+      );
+      await userEvent.click(
+        dialogOf(confirm).getByRole("button", { name: "Cancel" }),
+      );
+
+      expect(noteActions.getNote).not.toHaveBeenCalled();
+    });
+
+    it("opens and closes a folder when its name is clicked", async () => {
+      renderDashboard();
+
+      await userEvent.click(screen.getByText("Berlin"));
+      expect(screen.queryByText("Berlin tips")).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByText("Berlin"));
+      expect(screen.getByText("Berlin tips")).toBeInTheDocument();
+    });
+
+    it("doesn't open or close a folder when its action buttons are used", async () => {
+      renderDashboard();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Rename folder Berlin" }),
+      );
+      expect(screen.getByText("Berlin tips")).toBeInTheDocument();
+    });
+  });
 });

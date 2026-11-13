@@ -254,4 +254,16 @@ describe("NoteEditorDialog", () => {
       screen.getByRole("button", { name: "Exit fullscreen" }),
     ).toBeInTheDocument();
   });
+
+  it("starts in Preview when opened for reading", () => {
+    renderEditor({
+      initialMode: "preview",
+      initial: { title: "Berlin", content: "# Day 1" },
+    });
+    expect(screen.getByRole("heading", { name: "Day 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });
