@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { ActionResult } from "./types";
-import { useModalDialog } from "./use-modal-dialog";
+import { useModalDialog } from "@/app/components/shared/use-modal-dialog";
 
 // Value of the "no folder" option; real folder ids are never empty
 const TOP_LEVEL = "";

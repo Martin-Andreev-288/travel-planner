@@ -1,4 +1,9 @@
-import { signUpFormSchema, signInFormSchema } from "./validations";
+import {
+  itineraryActivitySchema,
+  itineraryTitleSchema,
+  signInFormSchema,
+  signUpFormSchema,
+} from "./validations";
 
 // ── signUpFormSchema ─────────────────────────────────────────────────────────
 
@@ -155,5 +160,117 @@ describe("signInFormSchema", () => {
     if (!result.success) {
       expect(result.error.issues[0].message).toBe("Password is required");
     }
+  });
+});
+
+// ── itineraryTitleSchema ────────────────────────────────────────────────────
+
+describe("itineraryTitleSchema", () => {
+  it("accepts a name and trims it", () => {
+    const result = itineraryTitleSchema.safeParse("  Summer in Rome  ");
+    expect(result.success && result.data).toBe("Summer in Rome");
+  });
+
+  it("rejects an empty or blank name", () => {
+    const result = itineraryTitleSchema.safeParse("   ");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Trip name is required");
+    }
+  });
+
+  it("rejects a name longer than 100 characters", () => {
+    expect(itineraryTitleSchema.safeParse("x".repeat(101)).success).toBe(false);
+  });
+});
+
+// ── itineraryActivitySchema ─────────────────────────────────────────────────
+
+describe("itineraryActivitySchema", () => {
+  const valid = {
+    name: "Museum Island",
+    city: "Berlin",
+    date: "2027-02-01",
+    startTime: "09:00",
+    endTime: "11:30",
+  };
+  const firstMessage = (input: object) => {
+    const result = itineraryActivitySchema.safeParse(input);
+    return result.success ? null : result.error.issues[0].message;
+  };
+
+  it("accepts a complete activity", () => {
+    expect(itineraryActivitySchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("accepts an activity with only a name and a city", () => {
+    const result = itineraryActivitySchema.safeParse({
+      name: "Museum Island",
+      city: "Berlin",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("trims the name and the city", () => {
+    const result = itineraryActivitySchema.safeParse({
+      ...valid,
+      name: "  Museum Island ",
+      city: " Berlin ",
+    });
+    expect(result.success && result.data).toMatchObject({
+      name: "Museum Island",
+      city: "Berlin",
+    });
+  });
+
+  it("requires a name and a city", () => {
+    expect(firstMessage({ ...valid, name: " " })).toBe(
+      "Activity name is required",
+    );
+    expect(firstMessage({ ...valid, city: "" })).toBe("City is required");
+  });
+
+  it("rejects dates in other formats", () => {
+    expect(firstMessage({ ...valid, date: "01.02.2027" })).toBe(
+      "Date must be in YYYY-MM-DD format",
+    );
+  });
+
+  it("rejects dates that don't exist", () => {
+    expect(firstMessage({ ...valid, date: "2027-02-30" })).toBe(
+      "Date is not a valid calendar date",
+    );
+  });
+
+  it("rejects times that aren't 24-hour HH:MM", () => {
+    expect(firstMessage({ ...valid, startTime: "9:00" })).toBe(
+      "Start time must be in HH:MM format",
+    );
+    expect(firstMessage({ ...valid, endTime: "24:00" })).toBe(
+      "End time must be in HH:MM format",
+    );
+  });
+
+  it("requires a start time when an end time is given", () => {
+    expect(firstMessage({ ...valid, startTime: undefined })).toBe(
+      "Add a start time before the end time",
+    );
+  });
+
+  it("requires the end time to be after the start time", () => {
+    expect(firstMessage({ ...valid, endTime: "09:00" })).toBe(
+      "End time must be after the start time",
+    );
+    expect(firstMessage({ ...valid, endTime: "08:00" })).toBe(
+      "End time must be after the start time",
+    );
+  });
+
+  it("allows a start time without an end time", () => {
+    const result = itineraryActivitySchema.safeParse({
+      ...valid,
+      endTime: undefined,
+    });
+    expect(result.success).toBe(true);
   });
 });

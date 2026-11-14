@@ -8,6 +8,7 @@ import {
   Clock,
   MessageSquarePlus,
   Pencil,
+  Plus,
   Trash2,
   Loader2,
   Check,
@@ -17,6 +18,7 @@ import {
   updateItineraryItem,
   deleteItineraryItem,
 } from "@/app/actions/itinerary-actions";
+import AddActivityDialog from "./add-activity-dialog";
 
 interface ItineraryItem {
   id: string;
@@ -26,6 +28,27 @@ interface ItineraryItem {
   date?: string;
   startTime?: string;
   endTime?: string;
+}
+
+// The city most activities are in, used to prefill new activities
+function mostCommonCity(items: ItineraryItem[]) {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    counts.set(item.city, (counts.get(item.city) ?? 0) + 1);
+  }
+  let best = "";
+  for (const [city, count] of counts) {
+    if (count > (counts.get(best) ?? 0)) best = city;
+  }
+  return best;
+}
+
+// The trip's last day (YYYY-MM-DD sorts correctly as text)
+function latestDate(items: ItineraryItem[]) {
+  return items.reduce(
+    (latest, item) => (item.date && item.date > latest ? item.date : latest),
+    "",
+  );
 }
 
 interface ItineraryDetailProps {
@@ -44,6 +67,14 @@ export default function ItineraryDetail({
   const [editValues, setEditValues] = useState<Partial<ItineraryItem>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  // Changes on every opening so the add form starts empty each time
+  const [addFormKey, setAddFormKey] = useState(0);
+
+  const openAddActivity = () => {
+    setAddFormKey((key) => key + 1);
+    setIsAdding(true);
+  };
 
   // Group items by date
   const groupedItems = items.reduce<Record<string, ItineraryItem[]>>(
@@ -174,6 +205,26 @@ export default function ItineraryDetail({
           </Link>
         )}
       </div>
+
+      {items.length === 0 && (
+        <div className="flex flex-col items-center rounded-2xl bg-white/60 px-6 py-10 text-center shadow-md backdrop-blur-md">
+          <Calendar size={36} className="mb-3 text-gray-300" />
+          <p className="mb-1 font-medium text-[#2c3e50]">
+            This trip has no activities yet
+          </p>
+          <p className="mb-5 text-sm text-gray-500">
+            Add the places and things you want to do, with dates and times if
+            you know them.
+          </p>
+          <button
+            onClick={openAddActivity}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+          >
+            <Plus size={16} />
+            Add activity
+          </button>
+        </div>
+      )}
 
       <div className="space-y-6">
         {datesWithDayNumbers.map(({ date, dayNumber }) => (
@@ -318,6 +369,26 @@ export default function ItineraryDetail({
           </div>
         ))}
       </div>
+
+      {items.length > 0 && (
+        <button
+          onClick={openAddActivity}
+          className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-gray-300 px-4 py-3 text-sm font-medium text-gray-600 transition-colors hover:border-blue-400 hover:bg-white/60 hover:text-blue-700"
+        >
+          <Plus size={16} />
+          Add activity
+        </button>
+      )}
+
+      <AddActivityDialog
+        key={addFormKey}
+        open={isAdding}
+        itineraryId={id}
+        defaultCity={mostCommonCity(items)}
+        defaultDate={latestDate(items)}
+        onAdded={(item) => setItems((prev) => [...prev, item])}
+        onClose={() => setIsAdding(false)}
+      />
     </div>
   );
 }

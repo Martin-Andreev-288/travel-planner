@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import type { ActionResult } from "./types";
-import { useModalDialog } from "./use-modal-dialog";
+import { useModalDialog } from "@/app/components/shared/use-modal-dialog";
 
 export type NoteDraft = { title: string; content: string };
 

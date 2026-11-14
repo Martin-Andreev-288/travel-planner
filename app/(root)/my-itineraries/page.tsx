@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import AuthPrompt from "@/app/components/auth-prompt";
 import ItineraryCard from "./itinerary-card";
+import NewTripButton from "./new-trip-button";
 
 export default async function MyItinerariesPage() {
   const session = await auth();
@@ -23,13 +24,18 @@ export default async function MyItinerariesPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-8 sm:py-16">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#2c3e50]">🗺️ My Itineraries</h1>
-        <p className="mt-2 text-gray-600">
-          {itineraries.length === 0
-            ? "You haven't saved any itineraries yet. Start chatting to plan a trip!"
-            : `${itineraries.length} saved ${itineraries.length === 1 ? "itinerary" : "itineraries"}`}
-        </p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#2c3e50]">
+            🗺️ My Itineraries
+          </h1>
+          <p className="mt-2 text-gray-600">
+            {itineraries.length === 0
+              ? "You haven't saved any itineraries yet. Plan a trip with the AI on Home, or create one yourself."
+              : `${itineraries.length} saved ${itineraries.length === 1 ? "itinerary" : "itineraries"}`}
+          </p>
+        </div>
+        <NewTripButton />
       </div>
 
       {itineraries.length > 0 && (

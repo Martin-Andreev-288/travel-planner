@@ -3,6 +3,11 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatError } from "@/lib/utils";
+import {
+  itineraryActivitySchema,
+  itineraryTitleSchema,
+  type ItineraryActivityInput,
+} from "@/lib/validations";
 import { TravelItineraryItem } from "@/app/api/chat/itinerary-store";
 import { revalidatePath } from "next/cache";
 
@@ -243,6 +248,99 @@ export async function updateItinerary(
     revalidatePath("/my-itineraries");
     revalidatePath(`/my-itineraries/${id}`);
     return { success: true, message: "Itinerary updated" };
+  } catch (error) {
+    return { success: false, message: formatError(error) };
+  }
+}
+
+// ── createItinerary ───────────────────────────────────────────────────────────
+
+// Creates an empty itinerary for planning a trip by hand; activities are then
+// added one by one with addItineraryItem
+export async function createItinerary(
+  title: string,
+): Promise<{ success: boolean; message: string; id?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const parsed = itineraryTitleSchema.safeParse(title);
+    if (!parsed.success) {
+      return { success: false, message: parsed.error.issues[0].message };
+    }
+
+    const itinerary = await prisma.itinerary.create({
+      data: { title: parsed.data, userId: session.user.id },
+    });
+
+    revalidatePath("/my-itineraries");
+    return { success: true, message: "Itinerary created", id: itinerary.id };
+  } catch (error) {
+    return { success: false, message: formatError(error) };
+  }
+}
+
+// ── addItineraryItem ──────────────────────────────────────────────────────────
+
+export async function addItineraryItem(
+  itineraryId: string,
+  input: ItineraryActivityInput,
+): Promise<{
+  success: boolean;
+  message: string;
+  item?: TravelItineraryItem;
+}> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const parsed = itineraryActivitySchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, message: parsed.error.issues[0].message };
+    }
+
+    const itinerary = await prisma.itinerary.findUnique({
+      where: { id: itineraryId },
+    });
+
+    if (!itinerary) {
+      return { success: false, message: "Itinerary not found" };
+    }
+
+    if (itinerary.userId !== session.user.id) {
+      return { success: false, message: "Not authorised" };
+    }
+
+    const { name, city, date, startTime, endTime } = parsed.data;
+    const item = await prisma.itineraryItem.create({
+      data: {
+        itineraryId,
+        name,
+        city,
+        date: date ?? null,
+        startTime: startTime ?? null,
+        endTime: endTime ?? null,
+      },
+    });
+
+    revalidatePath("/my-itineraries");
+    revalidatePath(`/my-itineraries/${itineraryId}`);
+    return {
+      success: true,
+      message: "Activity added",
+      item: {
+        id: item.id,
+        name: item.name,
+        city: item.city,
+        date: item.date ?? undefined,
+        startTime: item.startTime ?? undefined,
+        endTime: item.endTime ?? undefined,
+      },
+    };
   } catch (error) {
     return { success: false, message: formatError(error) };
   }
