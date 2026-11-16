@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { nanoid } from "nanoid";
 import {
   Calendar,
   Clock,
@@ -10,11 +11,15 @@ import {
   Loader2,
   Check,
   Pencil,
+  Plus,
   Trash2,
   X,
 } from "lucide-react";
 import { TravelItineraryItem } from "../api/chat/itinerary-store";
 import { saveItinerary, updateItinerary } from "../actions/itinerary-actions";
+import AddActivityDialog from "./shared/add-activity-dialog";
+import { latestDate, mostCommonCity } from "../utils/activity-defaults";
+import type { ItineraryActivity } from "@/lib/validations";
 
 interface ItineraryDisplayProps {
   groupedItems: Record<string, TravelItineraryItem[]>;
@@ -22,6 +27,8 @@ interface ItineraryDisplayProps {
   currentItineraryId?: string | null;
   onUpdateItem?: (id: string, updates: Partial<TravelItineraryItem>) => void;
   onDeleteItem?: (id: string) => void;
+  // Adds an activity created by hand; the button is only shown when given
+  onAddItem?: (item: TravelItineraryItem) => void;
 }
 
 // Container variants for staggering days
@@ -63,6 +70,7 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
   currentItineraryId,
   onUpdateItem,
   onDeleteItem,
+  onAddItem,
 }) => {
   const [saveState, setSaveState] = useState<
     "idle" | "loading" | "saved" | "sign-in"
@@ -73,6 +81,27 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
   );
 
   const hasItems = Object.keys(groupedItems).length > 0;
+  const [isAdding, setIsAdding] = useState(false);
+  // Changes on every opening so the add form starts empty each time
+  const [addFormKey, setAddFormKey] = useState(0);
+
+  const openAddActivity = () => {
+    setAddFormKey((key) => key + 1);
+    setIsAdding(true);
+  };
+
+  // On Home the itinerary lives in the browser until it's saved, so the
+  // activity only joins the panel's list. Its id is what the chat sees, which
+  // lets the AI change or remove it later like any other activity. (nanoid,
+  // unlike crypto.randomUUID, also works on plain-http addresses such as the
+  // dev server opened from a phone on the local network.)
+  const saveActivity = async (activity: ItineraryActivity) => {
+    onAddItem?.({
+      id: `manual-${nanoid(8)}`,
+      ...activity,
+    });
+    return { success: true };
+  };
 
   const handleSave = async () => {
     setSaveState("loading");
@@ -290,6 +319,16 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
         </motion.div>
       ))}
 
+      {onAddItem && (
+        <button
+          onClick={openAddActivity}
+          className="flex w-full items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-gray-300 bg-white/60 px-4 py-3 text-sm font-medium text-gray-600 backdrop-blur-md transition-colors hover:border-blue-400 hover:text-blue-700"
+        >
+          <Plus size={16} />
+          Add activity
+        </button>
+      )}
+
       {hasItems && itineraryItems && (
         <div className="pb-2">
           {saveState === "sign-in" ? (
@@ -323,6 +362,17 @@ const ItineraryDisplay: React.FC<ItineraryDisplayProps> = ({
             </button>
           )}
         </div>
+      )}
+
+      {onAddItem && (
+        <AddActivityDialog
+          key={addFormKey}
+          open={isAdding}
+          defaultCity={mostCommonCity(itineraryItems ?? [])}
+          defaultDate={latestDate(itineraryItems ?? [])}
+          onSave={saveActivity}
+          onClose={() => setIsAdding(false)}
+        />
       )}
     </motion.div>
   );

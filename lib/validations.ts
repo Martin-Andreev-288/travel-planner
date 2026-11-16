@@ -79,3 +79,4 @@ export const itineraryActivitySchema = z
 export type SignUpFormInput = z.infer<typeof signUpFormSchema>;
 export type SignInFormInput = z.infer<typeof signInFormSchema>;
 export type ItineraryActivityInput = z.input<typeof itineraryActivitySchema>;
+export type ItineraryActivity = z.output<typeof itineraryActivitySchema>;

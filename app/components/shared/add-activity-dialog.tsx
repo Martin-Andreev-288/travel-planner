@@ -2,18 +2,22 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { addItineraryItem } from "@/app/actions/itinerary-actions";
-import type { TravelItineraryItem } from "@/app/api/chat/itinerary-store";
 import { useModalDialog } from "@/app/components/shared/use-modal-dialog";
-import { itineraryActivitySchema } from "@/lib/validations";
+import {
+  itineraryActivitySchema,
+  type ItineraryActivity,
+} from "@/lib/validations";
 
 interface AddActivityDialogProps {
   open: boolean;
-  itineraryId: string;
   // Prefilled so adding several activities for the same place and day is quick
   defaultCity: string;
   defaultDate: string;
-  onAdded: (item: TravelItineraryItem) => void;
+  // Receives the validated activity; the caller decides where it goes (the
+  // database on a saved trip's page, the Home panel's list on Home)
+  onSave: (
+    activity: ItineraryActivity,
+  ) => Promise<{ success: boolean; message?: string }>;
   onClose: () => void;
 }
 
@@ -23,10 +27,9 @@ const labelClass = "flex flex-col gap-1.5 text-sm font-medium text-gray-700";
 
 export default function AddActivityDialog({
   open,
-  itineraryId,
   defaultCity,
   defaultDate,
-  onAdded,
+  onSave,
   onClose,
 }: AddActivityDialogProps) {
   const dialogRef = useModalDialog(open);
@@ -42,8 +45,8 @@ export default function AddActivityDialog({
     e.preventDefault();
     setError(null);
 
-    // Same rules as the server, checked here first for instant feedback.
-    // Empty optional fields are sent as "not set".
+    // Checked here for instant feedback (the server checks again where the
+    // activity is saved). Empty optional fields are sent as "not set".
     const parsed = itineraryActivitySchema.safeParse({
       name,
       city,
@@ -57,14 +60,13 @@ export default function AddActivityDialog({
     }
 
     setIsSaving(true);
-    const result = await addItineraryItem(itineraryId, parsed.data);
+    const result = await onSave(parsed.data);
     setIsSaving(false);
 
-    if (result.success && result.item) {
-      onAdded(result.item);
+    if (result.success) {
       onClose();
     } else {
-      setError(result.message);
+      setError(result.message ?? "Could not add the activity");
     }
   };
 

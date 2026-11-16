@@ -16,10 +16,13 @@ import {
   X,
 } from "lucide-react";
 import {
+  addItineraryItem,
   updateItineraryItem,
   deleteItineraryItem,
 } from "@/app/actions/itinerary-actions";
-import AddActivityDialog from "./add-activity-dialog";
+import AddActivityDialog from "@/app/components/shared/add-activity-dialog";
+import { latestDate, mostCommonCity } from "@/app/utils/activity-defaults";
+import type { ItineraryActivity } from "@/lib/validations";
 
 interface ItineraryItem {
   id: string;
@@ -29,27 +32,6 @@ interface ItineraryItem {
   date?: string;
   startTime?: string;
   endTime?: string;
-}
-
-// The city most activities are in, used to prefill new activities
-function mostCommonCity(items: ItineraryItem[]) {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    counts.set(item.city, (counts.get(item.city) ?? 0) + 1);
-  }
-  let best = "";
-  for (const [city, count] of counts) {
-    if (count > (counts.get(best) ?? 0)) best = city;
-  }
-  return best;
-}
-
-// The trip's last day (YYYY-MM-DD sorts correctly as text)
-function latestDate(items: ItineraryItem[]) {
-  return items.reduce(
-    (latest, item) => (item.date && item.date > latest ? item.date : latest),
-    "",
-  );
 }
 
 interface ItineraryDetailProps {
@@ -76,6 +58,16 @@ export default function ItineraryDetail({
   const openAddActivity = () => {
     setAddFormKey((key) => key + 1);
     setIsAdding(true);
+  };
+
+  // A saved trip: the activity is stored right away, then shown
+  const saveActivity = async (activity: ItineraryActivity) => {
+    const result = await addItineraryItem(id, activity);
+    if (result.success && result.item) {
+      const item = result.item;
+      setItems((prev) => [...prev, item]);
+    }
+    return result;
   };
 
   // Group items by date
@@ -423,10 +415,9 @@ export default function ItineraryDetail({
       <AddActivityDialog
         key={addFormKey}
         open={isAdding}
-        itineraryId={id}
         defaultCity={mostCommonCity(items)}
         defaultDate={latestDate(items)}
-        onAdded={(item) => setItems((prev) => [...prev, item])}
+        onSave={saveActivity}
         onClose={() => setIsAdding(false)}
       />
     </div>

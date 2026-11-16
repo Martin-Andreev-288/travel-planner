@@ -452,6 +452,9 @@ export default function Home({ session }: { session: Session | null }) {
                               ),
                             )
                           }
+                          onAddItem={(item) =>
+                            setItineraryItems((prev) => [...prev, item])
+                          }
                           onDeleteItem={(id) =>
                             setItineraryItems((prev) =>
                               prev.filter((item) => item.id !== id),
