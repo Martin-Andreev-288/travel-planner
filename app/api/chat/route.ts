@@ -7,7 +7,11 @@ import {
 } from "ai";
 import { google } from "@ai-sdk/google";
 import fs from "fs/promises";
-import { getOrCreateItinerary } from "./itinerary-store";
+import {
+  clientItinerarySchema,
+  getOrCreateItinerary,
+  replaceItinerary,
+} from "./itinerary-store";
 import { createToolSet, ItineraryUIMessage } from "./tool-set";
 
 // Upper bound for the model -> tool -> model loop of a single request
@@ -19,9 +23,22 @@ const systemMessageTemplate = await fs.readFile(
 );
 
 export async function POST(req: Request) {
-  const { id, messages }: { id: string; messages: ItineraryUIMessage[] } =
+  const {
+    id,
+    messages,
+    itinerary,
+  }: { id: string; messages: ItineraryUIMessage[]; itinerary?: unknown } =
     await req.json();
-  const itineraryPlan = getOrCreateItinerary(id);
+
+  // The browser sends the itinerary it shows; start from exactly that
+  let itineraryPlan = getOrCreateItinerary(id);
+  if (itinerary !== undefined) {
+    const parsed = clientItinerarySchema.safeParse(itinerary);
+    if (!parsed.success) {
+      return Response.json({ error: "Invalid itinerary" }, { status: 400 });
+    }
+    itineraryPlan = replaceItinerary(id, parsed.data);
+  }
 
   // Sort itinerary items by date and then by time
   const sortedItinerary = [...itineraryPlan].sort((a, b) => {

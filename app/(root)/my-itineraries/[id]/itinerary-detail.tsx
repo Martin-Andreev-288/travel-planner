@@ -12,6 +12,7 @@ import {
   Trash2,
   Loader2,
   Check,
+  MapPin,
   X,
 } from "lucide-react";
 import {
@@ -67,6 +68,7 @@ export default function ItineraryDetail({
   const [editValues, setEditValues] = useState<Partial<ItineraryItem>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   // Changes on every opening so the add form starts empty each time
   const [addFormKey, setAddFormKey] = useState(0);
@@ -107,6 +109,9 @@ export default function ItineraryDetail({
     return new Date(a).getTime() - new Date(b).getTime();
   });
 
+  // Each activity's city is only worth showing when the trip has several
+  const isMultiCity = new Set(items.map((item) => item.city)).size > 1;
+
   const datesWithDayNumbers = sortedDates.map((date, index) => ({
     date,
     dayNumber: date !== "Unscheduled" ? index + 1 : null,
@@ -114,8 +119,10 @@ export default function ItineraryDetail({
 
   const startEditing = (item: ItineraryItem) => {
     setEditingId(item.id);
+    setEditError(null);
     setEditValues({
       name: item.name,
+      city: item.city,
       date: item.date ?? "",
       startTime: item.startTime ?? "",
       endTime: item.endTime ?? "",
@@ -125,16 +132,23 @@ export default function ItineraryDetail({
   const cancelEditing = () => {
     setEditingId(null);
     setEditValues({});
+    setEditError(null);
   };
 
   const saveEdit = async (id: string) => {
-    setSavingId(id);
     const data: Parameters<typeof updateItineraryItem>[1] = {};
     const item = items.find((i) => i.id === id);
     if (!item) return;
+    setSavingId(id);
+    setEditError(null);
 
-    if (editValues.name !== undefined && editValues.name !== item.name) {
-      data.name = editValues.name;
+    const name = editValues.name?.trim();
+    const city = editValues.city?.trim();
+    if (name !== undefined && name !== item.name) {
+      data.name = name;
+    }
+    if (city !== undefined && city !== item.city) {
+      data.city = city;
     }
     if (editValues.date !== undefined) {
       data.date = editValues.date || null;
@@ -153,7 +167,8 @@ export default function ItineraryDetail({
           i.id === id
             ? {
                 ...i,
-                name: editValues.name ?? i.name,
+                name: name ?? i.name,
+                city: city ?? i.city,
                 date: editValues.date || undefined,
                 startTime: editValues.startTime || undefined,
                 endTime: editValues.endTime || undefined,
@@ -163,6 +178,8 @@ export default function ItineraryDetail({
       );
       setEditingId(null);
       setEditValues({});
+    } else {
+      setEditError(result.message ?? "Could not save the changes");
     }
     setSavingId(null);
   };
@@ -256,8 +273,20 @@ export default function ItineraryDetail({
                           setEditValues((v) => ({ ...v, name: e.target.value }))
                         }
                         onKeyDown={(e) => handleKeyDown(e, item.id)}
+                        aria-label="Activity"
                         className="w-full rounded border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-800 focus:border-blue-400 focus:outline-none"
                         autoFocus
+                      />
+                      <input
+                        type="text"
+                        value={editValues.city ?? ""}
+                        onChange={(e) =>
+                          setEditValues((v) => ({ ...v, city: e.target.value }))
+                        }
+                        onKeyDown={(e) => handleKeyDown(e, item.id)}
+                        aria-label="City"
+                        placeholder="City"
+                        className="w-full rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:border-blue-400 focus:outline-none"
                       />
                       <div className="flex flex-wrap gap-2">
                         <input
@@ -300,6 +329,11 @@ export default function ItineraryDetail({
                           className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:border-blue-400 focus:outline-none"
                         />
                       </div>
+                      {editError && (
+                        <p role="alert" className="text-xs text-red-600">
+                          {editError}
+                        </p>
+                      )}
                       <div className="flex gap-2">
                         <button
                           onClick={() => saveEdit(item.id)}
@@ -337,6 +371,12 @@ export default function ItineraryDetail({
                                 ? `${item.startTime} - ${item.endTime}`
                                 : item.startTime}
                             </span>
+                          </div>
+                        )}
+                        {isMultiCity && (
+                          <div className="mt-1 flex items-center text-xs text-gray-600">
+                            <MapPin size={12} className="mr-1 text-gray-500" />
+                            <span>{item.city}</span>
                           </div>
                         )}
                       </div>

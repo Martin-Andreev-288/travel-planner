@@ -202,11 +202,30 @@ export default function Home({ session }: { session: Session | null }) {
 
   const botActivity = status === "submitted" || status === "streaming";
 
+  // Every chat request carries the itinerary exactly as the panel shows it,
+  // so the AI also knows about items loaded with Continue Planning, edited or
+  // deleted by hand, or cleared with Start over
+  const chatRequestBody = () => ({
+    itinerary: itineraryItems.map(
+      ({ id, name, city, location, date, startTime, endTime }) => ({
+        id,
+        name,
+        city,
+        location,
+        date,
+        startTime,
+        endTime,
+      }),
+    ),
+  });
+
   const submitMessage = () => {
     if (!input.trim()) return;
-    sendMessage({ text: input });
+    sendMessage({ text: input }, { body: chatRequestBody() });
     setInput("");
   };
+
+  const retryMessage = () => regenerate({ body: chatRequestBody() });
 
   const handleStartChat = () => {
     if (input.trim()) {
@@ -389,7 +408,7 @@ export default function Home({ session }: { session: Session | null }) {
                           onInputChange={handleInputChange}
                           onSubmit={submitMessage}
                           error={error}
-                          onRetry={() => regenerate()}
+                          onRetry={retryMessage}
                         />
                       </motion.div>
                     )}
@@ -452,7 +471,7 @@ export default function Home({ session }: { session: Session | null }) {
                   onInputChange={handleInputChange}
                   onSubmit={submitMessage}
                   error={error}
-                  onRetry={() => regenerate()}
+                  onRetry={retryMessage}
                 />
               )}
             </motion.div>

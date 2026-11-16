@@ -135,6 +135,7 @@ export async function updateItineraryItem(
   id: string,
   data: Partial<{
     name: string;
+    city: string;
     date: string | null;
     startTime: string | null;
     endTime: string | null;
@@ -159,7 +160,34 @@ export async function updateItineraryItem(
       return { success: false, message: "Not authorised" };
     }
 
-    await prisma.itineraryItem.update({ where: { id }, data });
+    // Apply the change to the stored item and check the result with the same
+    // rules as adding one, so e.g. a new end time is compared with the start
+    // time already saved. Only these five fields are written: anything else in
+    // `data` (it comes from the client) is ignored.
+    const pick = (value: string | null | undefined, stored: string | null) =>
+      (value === undefined ? stored : value) ?? undefined;
+    const parsed = itineraryActivitySchema.safeParse({
+      name: data.name ?? item.name,
+      city: data.city ?? item.city,
+      date: pick(data.date, item.date),
+      startTime: pick(data.startTime, item.startTime),
+      endTime: pick(data.endTime, item.endTime),
+    });
+    if (!parsed.success) {
+      return { success: false, message: parsed.error.issues[0].message };
+    }
+
+    const { name, city, date, startTime, endTime } = parsed.data;
+    await prisma.itineraryItem.update({
+      where: { id },
+      data: {
+        name,
+        city,
+        date: date ?? null,
+        startTime: startTime ?? null,
+        endTime: endTime ?? null,
+      },
+    });
 
     revalidatePath(`/my-itineraries/${item.itinerary.id}`);
     return { success: true };
@@ -223,14 +251,13 @@ export async function updateItinerary(
       return { success: false, message: "Not authorised" };
     }
 
-    const title = generateTitle(items);
-
+    // The title is left as it is: it may have been chosen by hand (New trip,
+    // or renamed on My Itineraries), and updating the items shouldn't undo that
     await prisma.$transaction([
       prisma.itineraryItem.deleteMany({ where: { itineraryId: id } }),
       prisma.itinerary.update({
         where: { id },
         data: {
-          title,
           items: {
             create: items.map((item) => ({
               name: item.name,

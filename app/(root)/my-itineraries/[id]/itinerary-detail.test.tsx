@@ -99,3 +99,66 @@ describe("ItineraryDetail — adding activities", () => {
     expect(screen.getByLabelText("Activity")).toHaveValue("");
   });
 });
+
+describe("ItineraryDetail — cities", () => {
+  const activity = (name: string) =>
+    screen.getByText(name).closest(".group") as HTMLElement;
+
+  it("doesn't repeat the city when the whole trip is in one city", () => {
+    render(
+      <ItineraryDetail
+        id="trip-1"
+        title="Rome"
+        items={items.filter((item) => item.city === "Rome")}
+      />,
+    );
+    expect(within(activity("Colosseum")).queryByText("Rome")).toBeNull();
+  });
+
+  it("shows each activity's city when the trip spans several cities", () => {
+    render(<ItineraryDetail id="trip-1" title="Italy" items={items} />);
+    expect(within(activity("Colosseum")).getByText("Rome")).toBeInTheDocument();
+    expect(
+      within(activity("Uffizi")).getByText("Florence"),
+    ).toBeInTheDocument();
+  });
+
+  it("changes an activity's city", async () => {
+    actions.updateItineraryItem.mockResolvedValue({ success: true });
+    render(<ItineraryDetail id="trip-1" title="Italy" items={items} />);
+    // The row stays the same element while it switches to the edit form
+    const row = activity("Uffizi");
+
+    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+    const city = within(row).getByLabelText("City");
+    expect(city).toHaveValue("Florence");
+    await userEvent.clear(city);
+    await userEvent.type(city, " Siena ");
+    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
+
+    expect(actions.updateItineraryItem).toHaveBeenCalledWith("b", {
+      city: "Siena",
+      date: "2027-05-03",
+      startTime: null,
+      endTime: null,
+    });
+    expect(within(activity("Uffizi")).getByText("Siena")).toBeInTheDocument();
+  });
+
+  it("shows why a change couldn't be saved and keeps the form open", async () => {
+    actions.updateItineraryItem.mockResolvedValue({
+      success: false,
+      message: "End time must be after the start time",
+    });
+    render(<ItineraryDetail id="trip-1" title="Italy" items={items} />);
+    const row = activity("Uffizi");
+
+    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
+
+    expect(within(row).getByRole("alert")).toHaveTextContent(
+      "End time must be after the start time",
+    );
+    expect(within(row).getByLabelText("City")).toBeInTheDocument();
+  });
+});

@@ -1,4 +1,9 @@
-import { addItineraryItem, createItinerary } from "./itinerary-actions";
+import {
+  addItineraryItem,
+  createItinerary,
+  updateItinerary,
+  updateItineraryItem,
+} from "./itinerary-actions";
 
 const { auth, prisma, revalidatePath } = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -6,10 +11,15 @@ const { auth, prisma, revalidatePath } = vi.hoisted(() => ({
     itinerary: {
       create: vi.fn(),
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     itineraryItem: {
       create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      deleteMany: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
   revalidatePath: vi.fn(),
 }));
@@ -172,5 +182,117 @@ describe("addItineraryItem", () => {
       startTime: undefined,
       endTime: undefined,
     });
+  });
+});
+
+describe("updateItinerary", () => {
+  it("replaces the activities but keeps the trip's name", async () => {
+    const result = await updateItinerary("trip-1", [
+      { id: "x", name: "Pantheon", city: "Rome" },
+    ]);
+
+    expect(result).toEqual({ success: true, message: "Itinerary updated" });
+    expect(prisma.itinerary.update).toHaveBeenCalledOnce();
+    const [{ data }] = prisma.itinerary.update.mock.calls[0];
+    expect(data).not.toHaveProperty("title");
+    expect(data.items.create).toEqual([
+      {
+        name: "Pantheon",
+        city: "Rome",
+        location: null,
+        date: null,
+        startTime: null,
+        endTime: null,
+      },
+    ]);
+  });
+});
+
+describe("updateItineraryItem", () => {
+  const stored = {
+    id: "item-1",
+    name: "Colosseum",
+    city: "Rome",
+    date: "2027-05-01",
+    startTime: "09:00",
+    endTime: "11:00",
+    itinerary: { id: "trip-1", userId: USER_ID },
+  };
+
+  beforeEach(() => {
+    prisma.itineraryItem.findUnique.mockResolvedValue(stored);
+  });
+
+  it("rejects another user's activity", async () => {
+    prisma.itineraryItem.findUnique.mockResolvedValue({
+      ...stored,
+      itinerary: { id: "trip-1", userId: "someone-else" },
+    });
+    const result = await updateItineraryItem("item-1", { name: "X" });
+    expect(result).toEqual({ success: false, message: "Not authorised" });
+    expect(prisma.itineraryItem.update).not.toHaveBeenCalled();
+  });
+
+  it("changes the city, keeping everything else as stored", async () => {
+    const result = await updateItineraryItem("item-1", { city: " Florence " });
+
+    expect(result).toEqual({ success: true });
+    expect(prisma.itineraryItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: {
+        name: "Colosseum",
+        city: "Florence",
+        date: "2027-05-01",
+        startTime: "09:00",
+        endTime: "11:00",
+      },
+    });
+  });
+
+  it("checks a new end time against the stored start time", async () => {
+    const result = await updateItineraryItem("item-1", { endTime: "08:00" });
+    expect(result).toEqual({
+      success: false,
+      message: "End time must be after the start time",
+    });
+    expect(prisma.itineraryItem.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty name or city", async () => {
+    expect((await updateItineraryItem("item-1", { name: "  " })).message).toBe(
+      "Activity name is required",
+    );
+    expect((await updateItineraryItem("item-1", { city: "" })).message).toBe(
+      "City is required",
+    );
+  });
+
+  it("clears the date and times when they are set to null", async () => {
+    await updateItineraryItem("item-1", {
+      date: null,
+      startTime: null,
+      endTime: null,
+    });
+    expect(prisma.itineraryItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: {
+        name: "Colosseum",
+        city: "Rome",
+        date: null,
+        startTime: null,
+        endTime: null,
+      },
+    });
+  });
+
+  it("ignores fields other than the activity's own", async () => {
+    // A hand-crafted request could try to move the activity to another trip
+    await updateItineraryItem("item-1", {
+      name: "Colosseum",
+      itineraryId: "someone-elses-trip",
+    } as never);
+
+    const [{ data }] = prisma.itineraryItem.update.mock.calls[0];
+    expect(data).not.toHaveProperty("itineraryId");
   });
 });

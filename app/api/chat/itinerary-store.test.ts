@@ -1,4 +1,9 @@
-import { getOrCreateItinerary, itineraries } from "./itinerary-store";
+import {
+  clientItinerarySchema,
+  getOrCreateItinerary,
+  itineraries,
+  replaceItinerary,
+} from "./itinerary-store";
 
 // Clean up the shared store between tests
 beforeEach(() => {
@@ -42,5 +47,71 @@ describe("getOrCreateItinerary", () => {
     getOrCreateItinerary("session-x");
     expect(itineraries["session-x"]).toBeDefined();
     expect(itineraries["session-x"]).toEqual([]);
+  });
+});
+
+describe("clientItinerarySchema", () => {
+  const item = {
+    id: "cmx1",
+    name: "Colosseum",
+    city: "Rome",
+    date: "2027-05-01",
+    startTime: "09:00",
+    endTime: "11:00",
+  };
+
+  it("accepts the items the browser sends", () => {
+    expect(clientItinerarySchema.safeParse([item]).success).toBe(true);
+    expect(clientItinerarySchema.safeParse([]).success).toBe(true);
+  });
+
+  it("keeps only the fields the model works with", () => {
+    const result = clientItinerarySchema.safeParse([
+      { ...item, place: { name: "x" }, extra: true },
+    ]);
+    expect(result.success && result.data[0]).toEqual(item);
+  });
+
+  it("rejects items without an id, name or city", () => {
+    expect(clientItinerarySchema.safeParse([{ ...item, id: "" }]).success).toBe(
+      false,
+    );
+    const { city: _city, ...withoutCity } = item;
+    expect(clientItinerarySchema.safeParse([withoutCity]).success).toBe(false);
+  });
+
+  it("rejects anything that isn't a list, and lists over 200 items", () => {
+    expect(clientItinerarySchema.safeParse("items").success).toBe(false);
+    expect(clientItinerarySchema.safeParse(Array(201).fill(item)).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("replaceItinerary", () => {
+  const rome = { id: "a", name: "Colosseum", city: "Rome" };
+  const florence = { id: "b", name: "Uffizi", city: "Florence" };
+
+  it("replaces whatever the session had before", () => {
+    getOrCreateItinerary("session-1").push(rome);
+    const result = replaceItinerary("session-1", [florence]);
+    expect(result).toEqual([florence]);
+    expect(getOrCreateItinerary("session-1")).toEqual([florence]);
+  });
+
+  it("keeps the same array, so earlier references see the new items", () => {
+    const before = getOrCreateItinerary("session-1");
+    replaceItinerary("session-1", [rome]);
+    expect(before).toEqual([rome]);
+  });
+
+  it("clears the itinerary with an empty list", () => {
+    getOrCreateItinerary("session-1").push(rome);
+    replaceItinerary("session-1", []);
+    expect(getOrCreateItinerary("session-1")).toEqual([]);
+  });
+
+  it("creates the itinerary for a new session", () => {
+    expect(replaceItinerary("new-session", [rome])).toEqual([rome]);
   });
 });
