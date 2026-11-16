@@ -62,37 +62,42 @@ export default function Home({ session }: { session: Session | null }) {
       onToolCall: ({ toolCall }) => handleToolCall(toolCall),
     });
 
-  // Restore guest itinerary from localStorage after sign-in
+  // Keep a guest's trip in the browser so it survives signing in. Only for
+  // guests: signed-in users save trips to their account, and a browser copy
+  // would come back on every visit to Home and mix with other trips.
   useEffect(() => {
-    if (!session) return;
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return;
-      const items: TravelItineraryItem[] = JSON.parse(stored);
-      if (items.length > 0) {
+    if (!session && itineraryItems.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(itineraryItems));
+    }
+  }, [itineraryItems, session]);
+
+  // Set once the startup choice below has been made. React runs effects twice
+  // in development, and by the second run the URL hash is already cleared, so
+  // without this a guest trip would be restored over the trip just opened.
+  const startupDoneRef = useRef(false);
+
+  useEffect(() => {
+    // After signing in: show the trip planned as a guest, then forget the copy
+    const restoreGuestTrip = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) return;
+        const items: TravelItineraryItem[] = JSON.parse(stored);
+        localStorage.removeItem(STORAGE_KEY);
+        if (items.length === 0) return;
         setItineraryItems(items);
         setHasStartedChat(true);
         setBackground("map");
         const city = items[0].city;
         if (city) zoomToCity(city);
+      } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+    };
 
-  // Persist itinerary to localStorage for guests
-  useEffect(() => {
-    if (itineraryItems.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(itineraryItems));
-    }
-  }, [itineraryItems]);
-
-  useEffect(() => {
-    // Development feature that enables calling arbitrary tools via URL hash
-    const handleHashChange = () => {
+    // Opens the trip in the URL hash (Continue Planning). Also a development
+    // feature for calling arbitrary tools via the hash.
+    const loadTripFromHash = () => {
       const hash = window.location.hash.replace(/^#/, "");
       if (!hash) return;
       setHasStartedChat(true);
@@ -110,11 +115,17 @@ export default function Home({ session }: { session: Session | null }) {
         }
       }
 
-      const loadedItems: TravelItineraryItem[] = [];
+      const loadedItems = toolCalls
+        .filter(({ toolName }) => toolName === "addItineraryItem")
+        .map(({ args }) => args as TravelItineraryItem);
+      // Opening a trip shows exactly that trip, replacing whatever the panel
+      // had instead of adding to it
+      if (loadedItems.length > 0) {
+        setItineraryItems(loadedItems);
+      }
       for (const { toolName, args } of toolCalls) {
-        handleToolCall({ toolName, input: args });
-        if (toolName === "addItineraryItem") {
-          loadedItems.push(args as TravelItineraryItem);
+        if (toolName !== "addItineraryItem") {
+          handleToolCall({ toolName, input: args });
         }
       }
 
@@ -151,10 +162,22 @@ export default function Home({ session }: { session: Session | null }) {
 
       window.history.replaceState(null, "", window.location.pathname);
     };
-    handleHashChange();
-    window.addEventListener("hashchange", handleHashChange);
+
+    // What Home starts with is decided in one place, so an opened trip and a
+    // guest trip can never be combined and the map moves only once. A guest
+    // trip still stored when a trip is opened is kept for the next visit.
+    if (!startupDoneRef.current) {
+      startupDoneRef.current = true;
+      if (window.location.hash) {
+        loadTripFromHash();
+      } else if (session) {
+        restoreGuestTrip();
+      }
+    }
+
+    window.addEventListener("hashchange", loadTripFromHash);
     return () => {
-      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("hashchange", loadTripFromHash);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
