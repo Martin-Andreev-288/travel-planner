@@ -13,8 +13,8 @@ interface ChatProps {
   error?: Error;
   onRetry?: () => void;
   input: string;
-  onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onInputChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: () => void;
 }
 
@@ -30,7 +30,7 @@ const Chat: React.FC<ChatProps> = ({
   onRetry,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll to the most recent message
   useEffect(() => {
@@ -70,7 +70,8 @@ const Chat: React.FC<ChatProps> = ({
               <div
                 className={`prose max-w-[85%] ${
                   message.role === "user"
-                    ? "rounded-2xl rounded-tr-none bg-slate-700 px-4 py-3 text-white shadow-sm"
+                    ? // pre-wrap keeps the line breaks the user typed
+                      "rounded-2xl rounded-tr-none bg-slate-700 px-4 py-3 whitespace-pre-wrap text-white shadow-sm"
                     : ""
                 }`}
               >
@@ -113,6 +114,7 @@ const Chat: React.FC<ChatProps> = ({
           botActivity={botActivity}
           placeholder="Type your message..."
           ariaLabel="Send message"
+          maxRows={4}
         />
       </div>
     </motion.div>

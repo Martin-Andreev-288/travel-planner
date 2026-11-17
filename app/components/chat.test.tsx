@@ -222,4 +222,16 @@ describe("Chat", () => {
     expect(document.activeElement).toBe(screen.getByRole("textbox"));
     vi.useRealTimers();
   });
+
+  it("keeps the line breaks in the user's own messages", () => {
+    const multiLine = textMessage(
+      "4",
+      "user",
+      "Day 1: Museum Island\nDay 2: Potsdam",
+    );
+    const { container } = renderChat({ messages: [multiLine] });
+    const bubble = container.querySelector(".bg-slate-700") as HTMLElement;
+    expect(bubble.textContent).toBe("Day 1: Museum Island\nDay 2: Potsdam");
+    expect(bubble).toHaveClass("whitespace-pre-wrap");
+  });
 });
