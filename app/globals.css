@@ -34,3 +34,12 @@ body {
     z-index: 50;
   }
 }
+
+/* The label shown when hovering a pin on the map (the Popup in home.tsx).
+   MapLibre makes a popup's box catch the mouse; this one is only a label, and
+   catching the mouse would take the hover away from the pin underneath and
+   make the label flicker. Two classes, so it wins over MapLibre's own rule
+   without !important. */
+.pin-label .maplibregl-popup-content {
+  pointer-events: none;
+}

@@ -1,6 +1,10 @@
 import { Marker } from "react-map-gl/maplibre";
 import { MapPin } from "lucide-react";
 
+// Height of the pin in pixels. It stands on its map position (anchor
+// "bottom"), so anything shown above the pin has to be raised by this much.
+export const PIN_SIZE = 24;
+
 interface PinMarkerProps {
   longitude: number;
   latitude: number;
@@ -21,7 +25,7 @@ export default function PinMarker({
   return (
     <Marker longitude={longitude} latitude={latitude} anchor="bottom">
       <MapPin
-        size={24}
+        size={PIN_SIZE}
         fill={color}
         stroke="#fff"
         className="cursor-pointer drop-shadow-lg"

@@ -1,9 +1,11 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 import Home from "./home";
+import { PIN_SIZE } from "../components/map/PinMarker";
 
 // The map, the chat connection and the place/route lookups are replaced:
-// these tests are about which trip Home shows when it opens
+// these tests are about what Home shows, not about MapLibre or the AI
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
 vi.mock("react-map-gl/maplibre", () => ({
   default: React.forwardRef(function Map(
@@ -12,7 +14,30 @@ vi.mock("react-map-gl/maplibre", () => ({
   ) {
     return <div>{children}</div>;
   }),
-  Popup: () => null,
+  Marker: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="pin">{children}</div>
+  ),
+  // Shows the label together with the settings Home gives it
+  Popup: ({
+    children,
+    anchor,
+    offset,
+    className,
+  }: {
+    children?: React.ReactNode;
+    anchor?: string;
+    offset?: number;
+    className?: string;
+  }) => (
+    <div
+      role="tooltip"
+      data-anchor={anchor}
+      data-offset={offset}
+      className={className}
+    >
+      {children}
+    </div>
+  ),
 }));
 const { setMessages } = vi.hoisted(() => ({ setMessages: vi.fn() }));
 vi.mock("@ai-sdk/react", () => ({
@@ -25,8 +50,13 @@ vi.mock("@ai-sdk/react", () => ({
     error: undefined,
   }),
 }));
+// Every activity gets a map position, so its pin is shown
 vi.mock("../utils/places", () => ({
-  enrichItineraryWithPlace: async (items: unknown[]) => items,
+  enrichItineraryWithPlace: async (items: { name: string }[]) =>
+    items.map((item, index) => ({
+      ...item,
+      place: { name: item.name, location: { lat: 48.85 + index, lng: 2.35 } },
+    })),
 }));
 vi.mock("../utils/routes", () => ({ fetchAndDrawDayRoutes: vi.fn() }));
 vi.mock("../actions/itinerary-actions", () => ({
@@ -187,5 +217,27 @@ describe("Home — which trip it shows when it opens", () => {
     await renderHome(session, { strict: true });
     expect(panel()).toEqual(["Eiffel Tower", "Seine River Cruise"]);
     expect(storedTrip()).toEqual(stockholm);
+  });
+});
+
+describe("Home — map pins", () => {
+  it("shows a pin's name above the pin, where it can't cover it", async () => {
+    openWithContinuePlanning("paris-trip", paris);
+    await renderHome();
+    const pin = (await screen.findAllByTestId("pin"))[0].querySelector(
+      "svg",
+    ) as SVGElement;
+
+    await userEvent.hover(pin);
+    const label = screen.getByRole("tooltip");
+    expect(label).toHaveTextContent(/Eiffel Tower|Seine River Cruise/);
+    // Raised by more than the pin's height above the point the pin stands on
+    expect(label).toHaveAttribute("data-anchor", "bottom");
+    expect(Number(label.dataset.offset)).toBeGreaterThan(PIN_SIZE);
+    // Ignores the mouse (see .pin-label in globals.css)
+    expect(label).toHaveClass("pin-label");
+
+    await userEvent.unhover(pin);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });

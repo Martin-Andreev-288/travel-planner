@@ -13,7 +13,7 @@ import { Popup } from "react-map-gl/maplibre";
 import WebMercatorViewport from "viewport-mercator-project";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { DefaultChatTransport } from "ai";
-import PinMarker from "../components/map/PinMarker";
+import PinMarker, { PIN_SIZE } from "../components/map/PinMarker";
 import { enrichItineraryWithPlace } from "../utils/places";
 import { groupMarkersByDay, type Marker } from "../utils/markers";
 import { fetchAndDrawDayRoutes } from "../utils/routes";
@@ -339,12 +339,17 @@ export default function Home({ session }: { session: Session | null }) {
               />
             ))}
 
-            {/* Popup for hovered marker */}
+            {/* Label for the hovered pin. It's raised above the pin, and it
+                ignores the mouse (.pin-label in globals.css): if it covered
+                the pin, the pin would lose the hover, the label would vanish,
+                the pin would get the hover back, and it would flicker. */}
             {hoveredMarker && (
               <Popup
                 longitude={hoveredMarker.location.lng}
                 latitude={hoveredMarker.location.lat}
                 anchor="bottom"
+                offset={PIN_SIZE + 4}
+                className="pin-label"
                 closeOnClick={false}
                 closeButton={false}
               >
